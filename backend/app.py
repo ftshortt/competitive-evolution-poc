@@ -5,6 +5,15 @@ import os
 import signal
 from threading import Lock
 
+# Phase 2 imports
+try:
+    from backend.phase2.code_execution import code_execution_bp
+    from backend.phase2.tagging_service import tagging_bp
+    from backend.phase2.logs_streamer import logs_bp
+    PHASE_2_AVAILABLE = True
+except ImportError:
+    PHASE_2_AVAILABLE = False
+
 app = Flask(__name__)
 CORS(app)
 
@@ -18,6 +27,7 @@ experiment_stats = {
     'running': False
 }
 
+# Phase 1 routes (existing)
 @app.route('/api/chat', methods=['POST'])
 def chat():
     """Echo endpoint for chat messages"""
@@ -105,6 +115,15 @@ def get_status():
         'pool_count': experiment_stats['pool_count'],
         'running': experiment_stats['running']
     })
+
+# Phase 2 blueprint registration with feature flag
+if PHASE_2_AVAILABLE and os.environ.get('PHASE_2_ENABLED', 'false').lower() == 'true':
+    app.register_blueprint(code_execution_bp, url_prefix='/api/phase2')
+    app.register_blueprint(tagging_bp, url_prefix='/api/phase2')
+    app.register_blueprint(logs_bp, url_prefix='/api/phase2')
+    print("Phase 2 blueprints registered")
+else:
+    print("Phase 2 disabled or not available")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
