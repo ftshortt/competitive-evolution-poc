@@ -1,5 +1,4 @@
 # Competitive Evolution POC
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
@@ -61,6 +60,41 @@ make monitor
 make stop
 ```
 
+## Phase 2 - Enhanced Caretaker Interface (Optional)
+
+Phase 2 extends the basic monitoring capabilities with an advanced interactive caretaker interface featuring real-time code editing, enhanced visualization, and comprehensive logging.
+
+### Phase 2 Features
+
+- **Code Editor with Monaco**: Integrated Monaco Editor (VS Code engine) for viewing and editing evolved code with syntax highlighting, IntelliSense, and error detection
+- **Neo4j Tagging Interface**: Interactive UI for tagging and categorizing evolutionary nodes, managing lineage relationships, and exploring graph-based ancestry
+- **Real-time System Logs**: Live log streaming with filtering, severity levels, and search capabilities for monitoring evolution execution and debugging
+
+### Activation Instructions
+
+To enable Phase 2 features:
+
+1. **Frontend Configuration**: Edit `frontend/src/config.js` and set `PHASE_2_ENABLED: true`
+2. **Backend Environment**: Add `PHASE_2_ENABLED=true` to your `.env` file
+3. **Restart Services**: Run `make deploy` to apply changes
+
+For detailed integration instructions, architecture diagrams, and API documentation, see [docs/PHASE2_INTEGRATION.md](docs/PHASE2_INTEGRATION.md).
+
+### Feature Overview
+
+| Feature | Phase 1 | Phase 2 |
+|---------|---------|----------|
+| Evolution Monitoring | ✓ Grafana Dashboards | ✓ Enhanced Real-time Visualization |
+| Code Viewing | ✓ Basic Text Display | ✓ Monaco Editor with Syntax Highlighting |
+| Lineage Tracking | ✓ Neo4j Backend | ✓ Interactive Tagging & Exploration UI |
+| System Logs | ✓ Docker Logs | ✓ Live Streaming with Filters |
+| Code Editing | ✗ | ✓ In-browser Editing & Validation |
+| Node Tagging | ✗ | ✓ Custom Tags & Categories |
+
+### Recommendations
+
+**We strongly recommend testing Phase 1 functionality first** to verify that core evolution, fitness evaluation, and monitoring are working correctly before enabling Phase 2 features. Phase 2 adds UI complexity that is best explored once you're familiar with the underlying evolutionary system.
+
 ## Project Structure
 
 ```
@@ -73,91 +107,104 @@ competitive-evolution-poc/
 │   └── storage/            # Neo4j and PostgreSQL adapters
 ├── tests/                  # Unit and integration tests
 ├── docs/                   # Additional documentation
-├── docker-compose.yml      # Service orchestration
-├── Makefile                # Development and deployment commands
-└── requirements.txt        # Python dependencies
+├── infra/                  # Infrastructure and deployment configs
+├── deploy/                 # Deployment scripts and Dockerfiles
+└── Makefile               # Build and deployment automation
+```
+
+## Architecture
+
+The system consists of several key components:
+
+1. **Evolution Engine**: Manages dual-pool genetic algorithms, crossover operations, and mutation strategies
+2. **Fitness Evaluator**: Executes and scores generated code in isolated sandboxes with comprehensive test suites
+3. **Model Inference**: vLLM-powered serving of DeepSeek-R1 and Qwen2.5-Coder with efficient batching
+4. **Storage Layer**: PostgreSQL for persistence, Neo4j for lineage graphs
+5. **Task Queue**: Celery-based distributed processing for parallel evolution
+6. **Observability**: Prometheus metrics collection with Grafana visualization
+
+## Configuration
+
+Key configuration options in `.env`:
+
+```bash
+# Model Configuration
+DEEPSEEK_MODEL_PATH=/models/deepseek-r1
+QWEN_MODEL_PATH=/models/qwen2.5-coder
+
+# Evolution Parameters
+POPULATION_SIZE=50
+GENERATIONS=100
+MUTATION_RATE=0.2
+CROSSOVER_RATE=0.7
+
+# Infrastructure
+POSTGRES_HOST=postgres
+NEO4J_HOST=neo4j
+REDIS_HOST=redis
+
+# Phase 2 (Optional)
+PHASE_2_ENABLED=false
 ```
 
 ## Development
 
-### Running Tests
-
 ```bash
-# Run all tests
+# Run tests
 make test
 
-# Run with coverage
-make test-coverage
-```
-
-### Code Quality
-
-```bash
-# Lint code
+# Run linting
 make lint
 
 # Format code
 make format
 
-# Type checking
-make typecheck
+# Build Docker images locally
+make build
 ```
 
-## Architecture Overview
+## Troubleshooting
 
-### Dual-Pool Evolution System
+### GPU Not Detected
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Evolution Coordinator                    │
-└───────────────┬─────────────────────────────────┬───────────┘
-                │                                 │
-     ┌──────────▼──────────┐           ┌─────────▼──────────┐
-     │   DeepSeek-R1 Pool  │           │ Qwen2.5-Coder Pool │
-     │  (Reasoning Focus)  │◄─────────►│  (Coding Focus)    │
-     └──────────┬──────────┘           └─────────┬──────────┘
-                │         Cross-Pollination        │
-                └──────────────┬──────────────────┘
-                               │
-                    ┌──────────▼──────────┐
-                    │  Fitness Evaluator  │
-                    │    (Sandboxed)      │
-                    └──────────┬──────────┘
-                               │
-                ┌──────────────┼──────────────┐
-                │              │              │
-        ┌───────▼──────┐ ┌────▼────┐ ┌──────▼──────┐
-        │   Grafana    │ │  Neo4j  │ │ PostgreSQL  │
-        │ (Monitoring) │ │(Lineage)│ │(Persistence)│
-        └──────────────┘ └─────────┘ └─────────────┘
+Ensure NVIDIA drivers and CUDA toolkit are properly installed:
+
+```bash
+nvidia-smi
+docker run --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
 ```
 
-The system maintains two separate evolution pools, each optimized for different LLM strengths:
-- **DeepSeek-R1**: Excels at reasoning and problem decomposition
-- **Qwen2.5-Coder**: Optimized for code generation and syntax
+### Out of Memory Errors
 
-Periodic cross-pollination transfers top performers between pools, combining reasoning depth with coding proficiency.
+Reduce batch size or enable model quantization in `.env`:
 
-## Scaling Guide
+```bash
+VLLM_QUANTIZATION=awq
+VLLM_MAX_BATCH_SIZE=8
+```
 
-For production deployment on multi-GPU clusters (4-8x H100), see the comprehensive scaling guide:
+### Connection Issues
 
-📖 **[docs/SCALING_GUIDE.md](docs/SCALING_GUIDE.md)**
+Verify all services are running:
 
-Covers:
-- Multi-GPU model parallelism
-- Distributed task queue configuration
-- Database sharding and replication
-- Load balancing strategies
-- Performance benchmarks
+```bash
+docker-compose ps
+```
 
-## Documentation
+## Contributing
 
-- [Architecture Details](docs/ARCHITECTURE.md)
-- [API Reference](docs/API.md)
-- [Configuration Guide](docs/CONFIGURATION.md)
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [Troubleshooting](docs/TROUBLESHOOTING.md)
+Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- Built with [vLLM](https://github.com/vllm-project/vllm) for efficient LLM inference
+- Monitoring powered by [Grafana](https://grafana.com/) and [Prometheus](https://prometheus.io/)
+- Lineage tracking with [Neo4j](https://neo4j.com/)
+- Task orchestration via [Celery](https://docs.celeryproject.org/)
 
 ## Citation
 
@@ -165,18 +212,9 @@ If you use this framework in your research, please cite:
 
 ```bibtex
 @software{competitive_evolution_poc,
-  title = {Competitive Evolution POC: A Dual-Pool LLM Evolution Framework},
+  title = {Competitive Evolution POC: Dual-Pool LLM Evolution Framework},
   author = {ftshortt},
   year = {2025},
-  url = {https://github.com/ftshortt/competitive-evolution-poc},
-  note = {Production-ready framework for competitive AI code evolution}
+  url = {https://github.com/ftshortt/competitive-evolution-poc}
 }
 ```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-**Built with**: Python • vLLM • Neo4j • PostgreSQL • Grafana • Prometheus • Docker
