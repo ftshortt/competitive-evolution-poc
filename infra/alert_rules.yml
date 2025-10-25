@@ -1,0 +1,39 @@
+groups:
+  - name: evolution_alerts
+    interval: 10s
+    rules:
+      - alert: GPUMemoryCritical
+        expr: gpu_memory_mb > 15000
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "GPU memory near limit"
+          description: "GPU memory usage is {{ $value }}MB, approaching limit. Risk of OOM on RTX 5080."
+
+      - alert: FitnessStagnation
+        expr: (max_over_time(shinka_fitness[10m]) - min_over_time(shinka_fitness[10m])) < 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No fitness improvement detected"
+          description: "Fitness has not improved in the last 10 minutes. Current range: {{ $value }}."
+
+      - alert: VLLMServerDown
+        expr: vllm_r1_health == 0 or vllm_qwen_health == 0
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "VLLM server health check failed"
+          description: "One or more VLLM servers are down. Check logs and restart pool."
+
+      - alert: HighInferenceLatency
+        expr: inference_latency_ms > 5000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High inference latency detected"
+          description: "Inference latency is {{ $value }}ms, which is critically slow."
