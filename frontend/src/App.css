@@ -45,3 +45,90 @@
   grid-column: 2;
   grid-row: 2;
 }
+
+/* Phase 1 Layout - 4-pane grid (2x2) */
+.phase1-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 15px;
+  height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.phase1-layout .chat-pane {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.phase1-layout .metrics-pane {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.phase1-layout .graph-pane {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.phase1-layout .control-pane {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* Phase 2 Layout - 6-pane grid (3x2) */
+.phase2-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  gap: 15px;
+  height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Top row: Chat and Metrics */
+.phase2-layout .chat-pane {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.phase2-layout .metrics-pane {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* Middle row: Graph and CodeEditor */
+.phase2-layout .graph-pane {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.phase2-layout .code-editor-pane {
+  grid-column: 2;
+  grid-row: 2;
+  background: #f5f5f5;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  overflow: auto;
+}
+
+/* Bottom row: Control/Tags and Logs */
+.phase2-layout .control-pane {
+  grid-column: 1;
+  grid-row: 3;
+}
+
+.phase2-layout .logs-pane {
+  grid-column: 2;
+  grid-row: 3;
+  background: #f5f5f5;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  overflow: auto;
+  font-family: monospace;
+  font-size: 12px;
+}
