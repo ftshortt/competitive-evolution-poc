@@ -1,0 +1,366 @@
+{
+  "dashboard": {
+    "title": "Competitive Evolution PoC - Production",
+    "uid": "evolution-poc",
+    "timezone": "browser",
+    "refresh": "5s",
+    "schemaVersion": 38,
+    "version": 1,
+    "editable": true,
+    "panels": [
+      {
+        "id": 1,
+        "type": "timeseries",
+        "title": "ShinkaEvolve Fitness",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "shinka_fitness{pool=\"R1\"}",
+            "legendFormat": "R1 Pool",
+            "refId": "A"
+          },
+          {
+            "expr": "shinka_fitness{pool=\"Qwen\"}",
+            "legendFormat": "Qwen Pool",
+            "refId": "B"
+          },
+          {
+            "expr": "shinka_fitness{pool=\"HYBRID\"}",
+            "legendFormat": "HYBRID Pool",
+            "refId": "C"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 1,
+            "unit": "short"
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "type": "timeseries",
+        "title": "DGM Performance Gain",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 0
+        },
+        "targets": [
+          {
+            "expr": "dgm_performance_gain{pool=\"R1\"}",
+            "legendFormat": "R1 Pool",
+            "refId": "A"
+          },
+          {
+            "expr": "dgm_performance_gain{pool=\"Qwen\"}",
+            "legendFormat": "Qwen Pool",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 3,
+        "type": "gauge",
+        "title": "GPU Memory",
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 0,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "gpu_memory_used_mb",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 16384,
+            "unit": "mbytes",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                },
+                {
+                  "value": 12288,
+                  "color": "yellow"
+                },
+                {
+                  "value": 14336,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 4,
+        "type": "gauge",
+        "title": "GPU Utilization",
+        "gridPos": {
+          "h": 8,
+          "w": 6,
+          "x": 6,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "gpu_utilization_percent",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                },
+                {
+                  "value": 70,
+                  "color": "yellow"
+                },
+                {
+                  "value": 90,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        },
+        "options": {
+          "orientation": "auto",
+          "showThresholdLabels": false,
+          "showThresholdMarkers": true
+        }
+      },
+      {
+        "id": 5,
+        "type": "timeseries",
+        "title": "Inference Latency",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 12,
+          "y": 8
+        },
+        "targets": [
+          {
+            "expr": "inference_latency_ms{pool=\"R1\"}",
+            "legendFormat": "R1 Pool",
+            "refId": "A"
+          },
+          {
+            "expr": "inference_latency_ms{pool=\"Qwen\"}",
+            "legendFormat": "Qwen Pool",
+            "refId": "B"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms"
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      },
+      {
+        "id": 6,
+        "type": "stat",
+        "title": "vLLM R1 Health",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 0,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "vllm_r1_health",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  },
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  }
+                }
+              }
+            ],
+            "noValue": "UNKNOWN"
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "auto"
+        }
+      },
+      {
+        "id": 7,
+        "type": "stat",
+        "title": "vLLM Qwen Health",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 6,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "vllm_qwen_health",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {
+                "type": "value",
+                "options": {
+                  "1": {
+                    "text": "UP",
+                    "color": "green"
+                  },
+                  "0": {
+                    "text": "DOWN",
+                    "color": "red"
+                  }
+                }
+              }
+            ],
+            "noValue": "UNKNOWN"
+          }
+        },
+        "options": {
+          "colorMode": "background",
+          "graphMode": "none",
+          "textMode": "auto"
+        }
+      },
+      {
+        "id": 8,
+        "type": "stat",
+        "title": "Current Generation",
+        "gridPos": {
+          "h": 4,
+          "w": 6,
+          "x": 12,
+          "y": 16
+        },
+        "targets": [
+          {
+            "expr": "current_generation",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short"
+          }
+        },
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area",
+          "textMode": "auto"
+        }
+      },
+      {
+        "id": 9,
+        "type": "timeseries",
+        "title": "CPU Utilization",
+        "gridPos": {
+          "h": 8,
+          "w": 12,
+          "x": 0,
+          "y": 20
+        },
+        "targets": [
+          {
+            "expr": "cpu_utilization_percent",
+            "legendFormat": "CPU Usage",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "min": 0,
+            "max": 100,
+            "unit": "percent"
+          }
+        },
+        "options": {
+          "legend": {
+            "displayMode": "list",
+            "placement": "bottom"
+          }
+        }
+      }
+    ],
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "tags": [
+      "production",
+      "evolution",
+      "monitoring"
+    ]
+  },
+  "overwrite": false
+}
