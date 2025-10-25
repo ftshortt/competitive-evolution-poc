@@ -1,5 +1,28 @@
 version: "3.9"
 services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - ./src:/app/src
+    environment:
+      - NEO4J_URI=${NEO4J_URI}
+      - NEO4J_USER=${NEO4J_USER}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+    depends_on:
+      - neo4j
+      - prometheus
   neo4j:
     image: neo4j:5.25
     environment:
@@ -25,6 +48,10 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+  pushgateway:
+    image: prom/pushgateway:latest
+    ports:
+      - "9091:9091"
   evolution:
     build: .
     image: ce-poc:evolution
