@@ -1,4 +1,5 @@
 # Competitive Evolution POC
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
@@ -60,161 +61,119 @@ make monitor
 make stop
 ```
 
-## Phase 2 - Enhanced Caretaker Interface (Optional)
+## Phase 2 — Caretaker UI
 
-Phase 2 extends the basic monitoring capabilities with an advanced interactive caretaker interface featuring real-time code editing, enhanced visualization, and comprehensive logging.
+Phase 2 extends the basic monitoring capabilities with an advanced interactive caretaker interface featuring real-time code editing, enhanced visualization, comprehensive logging, and automated maintenance tools.
+
+### Phase 2 Architecture
+
+Phase 2 introduces a modern full-stack architecture:
+
+- **Frontend** (`frontend/`): React-based UI with Monaco Editor, built with Vite
+  - Real-time dashboard for monitoring evolution progress
+  - Interactive code editor with syntax highlighting and IntelliSense
+  - Neo4j graph visualization and tagging interface
+  - Live system logs with filtering and search
+  - Responsive design with modern UI components
+
+- **Backend API** (`backend/`): Flask-based REST API
+  - RESTful endpoints for code management and evolution control
+  - Neo4j integration for lineage tracking and tagging
+  - Real-time log streaming via WebSocket
+  - Entity CRUD operations for evolutionary artifacts
+  - Authentication and authorization support
+
+- **Automation Scripts** (`scripts/`): Maintenance and management utilities
+  - `neo4j_topic_tagger.py`: Automated tagging script for categorizing evolution entities
+    - Tags high-performing entities (fitness > 0.8)
+    - Identifies veteran entities (generation >= 10)
+    - Flags isolated entities for potential optimization
+    - Runs as part of scheduled maintenance workflows
+
+- **Docker Integration**: Updated `docker-compose.yml` includes:
+  - Frontend service (React + Vite dev server on port 5173)
+  - Backend API service (Flask on port 5000)
+  - All existing Phase 1 services (Neo4j, Prometheus, Grafana, etc.)
 
 ### Phase 2 Features
 
 - **Code Editor with Monaco**: Integrated Monaco Editor (VS Code engine) for viewing and editing evolved code with syntax highlighting, IntelliSense, and error detection
 - **Neo4j Tagging Interface**: Interactive UI for tagging and categorizing evolutionary nodes, managing lineage relationships, and exploring graph-based ancestry
 - **Real-time System Logs**: Live log streaming with filtering, severity levels, and search capabilities for monitoring evolution execution and debugging
+- **Automated Maintenance**: Python scripts for routine Neo4j database maintenance and entity classification
 
 ### Activation Instructions
 
 To enable Phase 2 features:
 
 1. **Frontend Configuration**: Edit `frontend/src/config.js` and set `PHASE_2_ENABLED: true`
-2. **Backend Environment**: Add `PHASE_2_ENABLED=true` to your `.env` file
-3. **Restart Services**: Run `make deploy` to apply changes
 
-For detailed integration instructions, architecture diagrams, and API documentation, see [docs/PHASE2_INTEGRATION.md](docs/PHASE2_INTEGRATION.md).
+2. **Deploy Phase 2 Services**:
+   ```bash
+   # Start all services including Phase 2 UI and API
+   docker-compose up -d frontend backend
+   ```
 
-### Feature Overview
+3. **Access the Caretaker UI**:
+   - Navigate to http://localhost:5173 in your browser
+   - The UI will connect to the backend API at http://localhost:5000
 
-| Feature | Phase 1 | Phase 2 |
-|---------|---------|----------|
-| Evolution Monitoring | ✓ Grafana Dashboards | ✓ Enhanced Real-time Visualization |
-| Code Viewing | ✓ Basic Text Display | ✓ Monaco Editor with Syntax Highlighting |
-| Lineage Tracking | ✓ Neo4j Backend | ✓ Interactive Tagging & Exploration UI |
-| System Logs | ✓ Docker Logs | ✓ Live Streaming with Filters |
-| Code Editing | ✗ | ✓ In-browser Editing & Validation |
-| Node Tagging | ✗ | ✓ Custom Tags & Categories |
+4. **Run Automated Tagging** (optional):
+   ```bash
+   # Execute the Neo4j topic tagging script
+   python scripts/neo4j_topic_tagger.py
+   
+   # Or run via Docker
+   docker-compose exec backend python /app/scripts/neo4j_topic_tagger.py
+   ```
 
-### Recommendations
-
-**We strongly recommend testing Phase 1 functionality first** to verify that core evolution, fitness evaluation, and monitoring are working correctly before enabling Phase 2 features. Phase 2 adds UI complexity that is best explored once you're familiar with the underlying evolutionary system.
-
-## Project Structure
+### Phase 2 Directory Structure
 
 ```
 competitive-evolution-poc/
-├── src/
-│   ├── evolution/          # Core evolution engine
-│   ├── fitness/            # Fitness evaluation and sandboxing
-│   ├── inference/          # vLLM model serving
-│   ├── monitoring/         # Prometheus metrics and Grafana dashboards
-│   └── storage/            # Neo4j and PostgreSQL adapters
-├── tests/                  # Unit and integration tests
-├── docs/                   # Additional documentation
-├── infra/                  # Infrastructure and deployment configs
-├── deploy/                 # Deployment scripts and Dockerfiles
-└── Makefile               # Build and deployment automation
+├── frontend/              # React UI application
+│   ├── src/
+│   │   ├── components/     # Phase 1 components
+│   │   ├── components-phase2/  # Enhanced Phase 2 components
+│   │   ├── services/       # API integration layer
+│   │   ├── App.jsx         # Main application
+│   │   └── config.js       # Configuration (phase toggles)
+│   ├── Dockerfile
+│   └── package.json
+├── backend/               # Flask REST API
+│   ├── phase2/            # Phase 2 specific routes
+│   ├── app.py             # Main API server
+│   ├── Dockerfile
+│   └── requirements.txt
+├── scripts/               # Automation utilities
+│   └── neo4j_topic_tagger.py  # Automated entity tagging
+├── docker-compose.yml     # Updated with frontend & backend services
+└── README.md              # This file
 ```
 
-## Architecture
+### Notes
 
-The system consists of several key components:
-
-1. **Evolution Engine**: Manages dual-pool genetic algorithms, crossover operations, and mutation strategies
-2. **Fitness Evaluator**: Executes and scores generated code in isolated sandboxes with comprehensive test suites
-3. **Model Inference**: vLLM-powered serving of DeepSeek-R1 and Qwen2.5-Coder with efficient batching
-4. **Storage Layer**: PostgreSQL for persistence, Neo4j for lineage graphs
-5. **Task Queue**: Celery-based distributed processing for parallel evolution
-6. **Observability**: Prometheus metrics collection with Grafana visualization
-
-## Configuration
-
-Key configuration options in `.env`:
-
-```bash
-# Model Configuration
-DEEPSEEK_MODEL_PATH=/models/deepseek-r1
-QWEN_MODEL_PATH=/models/qwen2.5-coder
-
-# Evolution Parameters
-POPULATION_SIZE=50
-GENERATIONS=100
-MUTATION_RATE=0.2
-CROSSOVER_RATE=0.7
-
-# Infrastructure
-POSTGRES_HOST=postgres
-NEO4J_HOST=neo4j
-REDIS_HOST=redis
-
-# Phase 2 (Optional)
-PHASE_2_ENABLED=false
-```
+- Phase 2 components are clearly separated from core engine files (`src/competitive_evolution.py` remains unchanged)
+- All Phase 2 additions are optional and can be disabled by setting `PHASE_2_ENABLED: false`
+- The backend API is designed to be stateless and horizontally scalable
+- Frontend development server runs on port 5173; production builds can be served via Nginx
 
 ## Development
 
+### Running Tests
+
 ```bash
-# Run tests
+# Run all tests
 make test
 
-# Run linting
-make lint
-
-# Format code
-make format
-
-# Build Docker images locally
-make build
+# Run specific test suite
+pytest tests/test_competitive_evolution.py
 ```
 
-## Troubleshooting
+### Contributing
 
-### GPU Not Detected
-
-Ensure NVIDIA drivers and CUDA toolkit are properly installed:
-
-```bash
-nvidia-smi
-docker run --gpus all nvidia/cuda:12.1.0-base-ubuntu22.04 nvidia-smi
-```
-
-### Out of Memory Errors
-
-Reduce batch size or enable model quantization in `.env`:
-
-```bash
-VLLM_QUANTIZATION=awq
-VLLM_MAX_BATCH_SIZE=8
-```
-
-### Connection Issues
-
-Verify all services are running:
-
-```bash
-docker-compose ps
-```
-
-## Contributing
-
-Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contributions are welcome! Please follow the existing code style and include tests for new features.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Built with [vLLM](https://github.com/vllm-project/vllm) for efficient LLM inference
-- Monitoring powered by [Grafana](https://grafana.com/) and [Prometheus](https://prometheus.io/)
-- Lineage tracking with [Neo4j](https://neo4j.com/)
-- Task orchestration via [Celery](https://docs.celeryproject.org/)
-
-## Citation
-
-If you use this framework in your research, please cite:
-
-```bibtex
-@software{competitive_evolution_poc,
-  title = {Competitive Evolution POC: Dual-Pool LLM Evolution Framework},
-  author = {ftshortt},
-  year = {2025},
-  url = {https://github.com/ftshortt/competitive-evolution-poc}
-}
-```
+MIT License - see LICENSE file for details
