@@ -1,5 +1,4 @@
 import axios from 'axios';
-
 const API_BASE_URL = '/api';
 
 // Create axios instance with base configuration
@@ -10,65 +9,62 @@ const apiClient = axios.create({
   },
 });
 
-/**
- * Send a chat message to the assistant
- * @param {string} message - The message to send
- * @returns {Promise<Object>} Response containing the assistant's message
- */
-export const sendChatMessage = async (message) => {
-  try {
-    const response = await apiClient.post('/chat', { message });
-    return response.data;
-  } catch (error) {
-    console.error('Error sending chat message:', error);
-    throw error;
-  }
+// Chat
+export const sendChatMessage = async (message, agent_id) => {
+  const payload = agent_id ? { message, agent_id } : { message };
+  const { data } = await apiClient.post('/chat', payload);
+  return data;
 };
 
-/**
- * Start the experiment
- * @returns {Promise<Object>} Response containing the experiment status
- */
+// Agent lifecycle
+export const spawnAgent = async ({ parent_id, traits, name }) => {
+  const { data } = await apiClient.post('/agent/spawn', { parent_id, traits, name });
+  return data;
+};
+
+export const retireAgent = async ({ agent_id }) => {
+  const { data } = await apiClient.post('/agent/retire', { agent_id });
+  return data;
+};
+
+export const getAgentStatus = async () => {
+  const { data } = await apiClient.get('/agent/status');
+  return data;
+};
+
+export const getAgentFamily = async (agent_id) => {
+  const { data } = await apiClient.get(`/agent/family/${agent_id}`);
+  return data;
+};
+
+export const postAgentTopic = async ({ agent_id, topic, category }) => {
+  const { data } = await apiClient.post('/agent/topic', { agent_id, topic, category });
+  return data;
+};
+
+// Experiment controls (existing)
 export const startExperiment = async () => {
-  try {
-    const response = await apiClient.post('/experiment/start');
-    return response.data;
-  } catch (error) {
-    console.error('Error starting experiment:', error);
-    throw error;
-  }
+  const { data } = await apiClient.post('/experiment/start');
+  return data;
 };
 
-/**
- * Stop the experiment
- * @returns {Promise<Object>} Response containing the experiment status
- */
 export const stopExperiment = async () => {
-  try {
-    const response = await apiClient.post('/experiment/stop');
-    return response.data;
-  } catch (error) {
-    console.error('Error stopping experiment:', error);
-    throw error;
-  }
+  const { data } = await apiClient.post('/experiment/stop');
+  return data;
 };
 
-/**
- * Get the current experiment status
- * @returns {Promise<Object>} Response containing current status, generation, fitness, and pool count
- */
 export const getStatus = async () => {
-  try {
-    const response = await apiClient.get('/experiment/status');
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching status:', error);
-    throw error;
-  }
+  const { data } = await apiClient.get('/experiment/status');
+  return data;
 };
 
 export default {
   sendChatMessage,
+  spawnAgent,
+  retireAgent,
+  getAgentStatus,
+  getAgentFamily,
+  postAgentTopic,
   startExperiment,
   stopExperiment,
   getStatus,
