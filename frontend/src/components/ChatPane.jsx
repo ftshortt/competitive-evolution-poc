@@ -1,7 +1,18 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { spawnAgent, retireAgent, getAgentStatus, getAgentFamily, postAgentTopic, sendChatMessage } from '../services/api';
 
-const SYSTEM_HELP = `Commands: \n- spawn child {"traits": {"domain": "x", "style": "y"}}\n- retire <agent_id>\n- show family <agent_id>`;
+const SYSTEM_HELP = `Commands: 
+- spawn child {"traits": {"domain": "x", "style": "y"}}
+- retire <agent_id>
+- show family <agent_id>`;
+
+const CATEGORY_COLORS = {
+  exploration: '#3b82f6',
+  exploitation: '#22c55e',
+  innovation: '#a855f7',
+  stabilization: '#f59e0b',
+  adaptation: '#ef4444',
+};
 
 export default function ChatPane() {
   const [messages, setMessages] = useState([]);
@@ -9,6 +20,8 @@ export default function ChatPane() {
   const [loading, setLoading] = useState(false);
   const [agents, setAgents] = useState([]);
   const [activeAgentId, setActiveAgentId] = useState(null);
+  const [mode, setMode] = useState('dev'); // dev | user
+  const [lastDriftHint, setLastDriftHint] = useState('');
   const pollRef = useRef(null);
 
   const parentAgentId = useMemo(() => agents.find(a => a.generation === 0)?.id || null, [agents]);
@@ -28,15 +41,15 @@ export default function ChatPane() {
       const resp = await getAgentStatus();
       setAgents(resp.live_agents || []);
       if (verbose && resp.metrics?.topic_categories) {
-        // could surface a small badge somewhere
+        // surface a small badge somewhere if needed
       }
     } catch (e) {
       console.error('Failed to refresh agents', e);
     }
   }
 
-  function append(role, content) {
-    setMessages(prev => [...prev, { role, content, ts: Date.now() }]);
+  function append(role, content, extra = {}) {
+    setMessages(prev => [...prev, { role, content, ts: Date.now(), ...extra }]);
   }
 
   async function handleSendMessage() {
@@ -45,8 +58,6 @@ export default function ChatPane() {
     setInput('');
     append('user', text);
     setLoading(true);
-
-    // Parse optional commands
     const lower = text.toLowerCase();
     try {
       if (lower.startsWith('spawn child')) {
@@ -79,7 +90,6 @@ export default function ChatPane() {
         append('assistant', `Family nodes: ${resp.tree?.nodes?.length || 0}, edges: ${resp.tree?.edges?.length || 0}`);
         return;
       }
-
       // Default chat to parent/active agent context
       const agentId = activeAgentId || parentAgentId;
       const response = await sendChatMessage(text, agentId);
@@ -90,6 +100,24 @@ export default function ChatPane() {
       for (const t of tags.slice(0, 3)) {
         try { await postAgentTopic({ agent_id: agentId, topic: t }); } catch {}
       }
+
+      // Seamless categorization call to backend
+      try {
+        const r = await fetch('/categorize', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+        const cj = await r.json();
+        if (cj?.category) {
+          append('system', `Category: ${cj.category} (${Math.round((cj.confidence||0)*100)}%)`, { category: cj.category });
+        }
+      } catch {}
+
+      // Pull status drift hints
+      try {
+        const sr = await fetch('/status');
+        const sj = await sr.json();
+        const hint = sj?.status_data?.recent_drift?.slice(-1)?.[0]?.drift?.hint;
+        if (hint) { setLastDriftHint(hint); }
+      } catch {}
+
     } catch (err) {
       console.error(err);
       append('assistant', 'Error handling message. ' + (err?.message || ''));
@@ -105,32 +133,56 @@ export default function ChatPane() {
     }
   }
 
+  const categorizedBubbles = messages.filter(m => m.category);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '10px' }}>
-      <h3>Chat</h3>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-        <label>Active agent:</label>
-        <select value={activeAgentId || ''} onChange={e => setActiveAgentId(e.target.value)}>
-          <option value="">Parent default</option>
-          {agents.map(a => (
-            <option key={a.id} value={a.id}>{a.name || a.id.slice(0,8)} · gen {a.generation} · fit {a.fitness?.toFixed?.(2) || '0.00'}</option>
-          ))}
-        </select>
-        <span style={{ color: '#777' }}>{agents.length} live</span>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        <strong>Chat</strong>
+        <label style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span>Mode:</span>
+          <select value={mode} onChange={e => setMode(e.target.value)}>
+            <option value="dev">Dev</option>
+            <option value="user">User</option>
+          </select>
+        </label>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #ccc', padding: '10px', marginBottom: '10px', backgroundColor: '#f9f9f9' }}>
+      {/* Category bubbles row */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        {['exploration','exploitation','innovation','stabilization','adaptation'].map(cat => (
+          <span key={cat} title={cat}
+            style={{
+              background: CATEGORY_COLORS[cat], color: 'white', padding: '4px 8px', borderRadius: 999,
+              opacity: categorizedBubbles.some(b => b.category === cat) ? 1 : 0.35,
+            }}>
+            {cat}
+          </span>
+        ))}
+        {lastDriftHint && (
+          <span style={{ marginLeft: 'auto', fontStyle: 'italic', color: '#64748b' }}>Hint: {lastDriftHint}</span>
+        )}
+      </div>
+
+      <div style={{ flex: 1, border: '1px solid #e5e7eb', borderRadius: 6, padding: 10, overflowY: 'auto', marginBottom: 8, background: '#fff' }}>
         {messages.map((msg, idx) => (
-          <div key={idx} style={{ marginBottom: '10px', padding: '8px', backgroundColor: msg.role === 'user' ? '#e3f2fd' : '#f5f5f5', borderRadius: '4px', borderLeft: `4px solid ${msg.role === 'user' ? '#2196f3' : '#4caf50'}` }}>
-            <strong>{msg.role === 'user' ? 'You' : 'Assistant'}:</strong>
-            <div style={{ marginTop: '5px', whiteSpace: 'pre-wrap' }}>{msg.content}</div>
+          <div key={idx} style={{
+            marginBottom: 10,
+            border: '1px solid #e5e7eb',
+            borderLeft: msg.category ? `6px solid ${CATEGORY_COLORS[msg.category]}` : '6px solid transparent',
+            borderRadius: 6,
+            padding: 8,
+            background: msg.role === 'user' ? '#f8fafc' : '#fff',
+          }}>
+            {msg.role === 'user' ? 'You' : (msg.role === 'system' ? 'System' : 'Assistant')}:
+            <div style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{msg.content}</div>
           </div>
         ))}
-        {loading && <div style={{ fontStyle: 'italic', color: '#666' }}>Assistant is typing...</div>}
-        <div style={{ color: '#888', fontSize: 12, marginTop: 8, whiteSpace: 'pre-wrap' }}>{SYSTEM_HELP}</div>
+        {loading && <div style={{ color: '#64748b', fontStyle: 'italic' }}>Assistant is typing...</div>}
+        <div style={{ color: '#64748b', fontSize: 12, marginTop: 12, whiteSpace: 'pre-wrap' }}>{SYSTEM_HELP}</div>
       </div>
 
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ display: 'flex', gap: 8 }}>
         <input
           type="text"
           value={input}
@@ -140,7 +192,7 @@ export default function ChatPane() {
           disabled={loading}
           style={{ flex: 1, padding: '10px', fontSize: '14px', border: '1px solid #ccc', borderRadius: '4px' }}
         />
-        <button onClick={handleSendMessage} disabled={loading}>Send</button>
+        <button disabled={loading} onClick={handleSendMessage}>Send</button>
       </div>
     </div>
   );
