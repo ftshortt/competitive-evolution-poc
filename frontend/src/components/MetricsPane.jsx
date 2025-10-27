@@ -3,14 +3,18 @@ import { getAgentStatus } from '../services/api';
 
 export default function MetricsPane() {
   const [metrics, setMetrics] = useState(null);
+  const [asfdvm, setAsfdvm] = useState(null);
 
   async function refresh() {
     try {
       const r = await getAgentStatus();
       setMetrics(r.metrics || null);
-    } catch (e) {
-      // ignore
-    }
+    } catch {}
+    try {
+      const s = await fetch('/status');
+      const sj = await s.json();
+      setAsfdvm(sj.status_data || sj);
+    } catch {}
   }
 
   useEffect(() => {
@@ -20,20 +24,31 @@ export default function MetricsPane() {
   }, []);
 
   const k = metrics || {};
+  const cat = asfdvm?.category_stats || {};
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', padding: '10px' }}>
       <h3>Metrics</h3>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 12 }}>
         <Tile label="Live agents" value={k.live_agents ?? 0} />
-        <Tile label="Average fitness" value={Number(k.average_fitness || 0).toFixed(2)} />
+        <Tile label="Average fitness" value={(Number(k.average_fitness || 0)).toFixed(2)} />
         <Tile label="Generational depth" value={k.max_generation ?? 0} />
       </div>
-      <div style={{ flex: 1, border: '1px solid #ccc', borderRadius: 4, padding: 12 }}>
-        <h4>Generation distribution</h4>
+
+      <div style={{ border: '1px solid #ccc', borderRadius: 4, padding: 12, marginBottom: 12 }}>
+        <h4>Category evolution</h4>
         <ul style={{ marginTop: 6 }}>
-          {Object.entries(k.generation_distribution || {}).map(([gen, count]) => (
-            <li key={gen}>gen {gen}: {count}</li>
+          {Object.entries(cat).map(([name, stats]) => (
+            <li key={name}>{name}: {stats.count} active · avg fit {(Number(stats.avg_fitness||0)).toFixed(2)}</li>
+          ))}
+        </ul>
+      </div>
+
+      <div style={{ border: '1px solid #ccc', borderRadius: 4, padding: 12 }}>
+        <h4>Recent drift</h4>
+        <ul style={{ marginTop: 6 }}>
+          {(asfdvm?.recent_drift || []).map((d, i) => (
+            <li key={i}>{new Date(d.timestamp*1000).toLocaleTimeString()} · {d.drift?.type} · {d.drift?.hint}</li>
           ))}
         </ul>
       </div>
