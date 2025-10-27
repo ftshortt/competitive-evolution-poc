@@ -1,8 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import subprocess
 import os
-import signal
 from threading import Lock
 
 # Phase 2 imports
@@ -20,9 +18,9 @@ from src.utils import Neo4jLineageTracker, Task, Solution, DEFAULT_DOMAIN
 # Agent lifecycle
 from backend.agent_lifecycle import LifecycleManager
 
-# Optional: AS-FDVM integration placeholder (adapt to your project structure)
+# AS-FDVM engine
 try:
-    from src.as_fdvm import evaluate_agent  # expected signature: evaluate_agent(agent_dict) -> fitness float
+    from backend.asfdvm import engine as asfdvm_engine
     AS_FDVM_AVAILABLE = True
 except Exception:
     AS_FDVM_AVAILABLE = False
@@ -65,9 +63,49 @@ def chat():
         'status': 'success'
     })
 
-# Existing endpoints omitted for brevity in this view... kept below
+# AS-FDVM endpoints
+@app.route('/categorize', methods=['POST'])
+def categorize():
+    if not AS_FDVM_AVAILABLE:
+        return jsonify({'status': 'error', 'message': 'AS-FDVM not available'}), 503
+    data = request.get_json(force=True) or {}
+    text = data.get('text', '')
+    category, confidence = asfdvm_engine.categorize_message(text)
+    return jsonify({'status': 'success', 'category': category, 'confidence': confidence})
 
-# Agent Lifecycle API
+@app.route('/tag', methods=['POST'])
+def tag():
+    if not AS_FDVM_AVAILABLE:
+        return jsonify({'status': 'error', 'message': 'AS-FDVM not available'}), 503
+    data = request.get_json(force=True) or {}
+    content = data.get('content', '')
+    context = data.get('context') or {}
+    tags = asfdvm_engine.tag_content(content, context)
+    return jsonify({'status': 'success', 'tags': tags})
+
+@app.route('/spawn', methods=['POST'])
+def spawn():
+    if not AS_FDVM_AVAILABLE:
+        return jsonify({'status': 'error', 'message': 'AS-FDVM not available'}), 503
+    data = request.get_json(force=True) or {}
+    category = data.get('category')
+    parent_id = data.get('parent_id')
+    agent = asfdvm_engine.spawn_agent(category=category, parent_id=parent_id)
+    return jsonify({'status': 'success', 'agent': agent.to_dict()})
+
+@app.route('/graph', methods=['GET'])
+def graph():
+    if not AS_FDVM_AVAILABLE:
+        return jsonify({'status': 'error', 'message': 'AS-FDVM not available'}), 503
+    return jsonify({'status': 'success', 'graph': asfdvm_engine.get_graph_data()})
+
+@app.route('/status', methods=['GET'])
+def status():
+    if not AS_FDVM_AVAILABLE:
+        return jsonify({'status': 'error', 'message': 'AS-FDVM not available'}), 503
+    return jsonify({'status': 'success', 'status_data': asfdvm_engine.get_status()})
+
+# Agent Lifecycle API (existing)
 @app.route('/api/agent/spawn', methods=['POST'])
 def api_agent_spawn():
     data = request.get_json(force=True) or {}
@@ -78,17 +116,6 @@ def api_agent_spawn():
         return jsonify({'status': 'error', 'message': 'No parent available to spawn from'}), 400
     try:
         child = lifecycle.spawn_child_agent(parent_id, traits_override=traits, name=name)
-        # Evaluate fitness via AS-FDVM if available
-        if AS_FDVM_AVAILABLE:
-            try:
-                fitness = evaluate_agent(child.to_dict())
-                lifecycle.evaluate_fitness(child.id, {
-                    'interaction_count': child.interaction_count,
-                    'accuracy': fitness,
-                    'domain_expertise': 0.5
-                })
-            except Exception:
-                pass
         return jsonify({'status': 'success', 'agent': child.to_dict()})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 400
@@ -111,32 +138,7 @@ def api_agent_status():
     metrics = lifecycle.get_metrics()
     return jsonify({'status': 'success', 'live_agents': live, 'metrics': metrics})
 
-@app.route('/api/agent/family/<agent_id>', methods=['GET'])
-def api_agent_family(agent_id: str):
-    tree = lifecycle.get_family_tree(agent_id)
-    if not tree:
-        return jsonify({'status': 'error', 'message': 'Agent not found'}), 404
-    return jsonify({'status': 'success', 'tree': tree})
-
-@app.route('/api/agent/topic', methods=['POST'])
-def api_agent_topic():
-    data = request.get_json(force=True) or {}
-    agent_id = data.get('agent_id')
-    topic = data.get('topic')
-    category = data.get('category')
-    if not agent_id or not topic:
-        return jsonify({'status': 'error', 'message': 'agent_id and topic required'}), 400
-    lifecycle.log_topic_drift(agent_id, topic, category)
-    return jsonify({'status': 'success'})
-
-# Auto retirement cron-like endpoint (can be called by FE or scheduler)
-@app.route('/api/agent/auto_retire', methods=['POST'])
-def api_agent_auto_retire():
-    threshold = float((request.get_json() or {}).get('threshold', 0.2))
-    retired = lifecycle.auto_retire_low_fitness_agents(threshold=threshold)
-    return jsonify({'status': 'success', 'retired': retired})
-
-# Existing entity endpoints remain intact below
+# Entities endpoints kept as before...
 @app.route('/api/entities/solution', methods=['POST'])
 def api_create_solution():
     data = request.get_json(force=True)
@@ -158,10 +160,8 @@ def api_create_solution():
         domain=(data.get('domain') or DEFAULT_DOMAIN)
     )
     node = tracker.create_solution(sol)
-    # Optionally link to parents
     for pid in sol.parent_ids:
         tracker.link_parent(sol.id, pid)
-    # Optionally link to task
     if sol.task_id:
         tracker.link_solution_to_task(sol.id, sol.task_id)
     return jsonify({'status': 'success', 'solution': node})
