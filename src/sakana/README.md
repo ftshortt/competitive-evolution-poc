@@ -2,11 +2,12 @@
 
 ## Overview
 
-This module provides scaffolding and integration points for [Sakana AI's](https://sakana.ai/) evolutionary frameworks and adaptive reasoning approaches. The Competitive Evolution POC is designed to support Sakana-style workflows including model merging, evolutionary optimization, and emergent capability discovery.
+This module provides scaffolding and integration points for [Sakana AI's](https://sakana.ai/) evolutionary frameworks and adaptive reasoning approaches. The EvoAgent is designed to support Sakana-style workflows including model merging, evolutionary optimization, and emergent capability discovery.
 
 ## Current Status
 
 **Phase 1: Foundation** (Current)
+
 - ✅ Module structure scaffolding
 - ✅ Documentation and integration roadmap
 - ✅ Architectural alignment with evolutionary computation principles
@@ -14,23 +15,29 @@ This module provides scaffolding and integration points for [Sakana AI's](https:
 ## Planned Modules
 
 ### `merge.py`
+
 Model weight merging strategies and combination workflows for Sakana-style model evolution.
 
 ### `evolution.py`
+
 Evolutionary algorithms and optimization strategies adapted from Sakana's research approaches.
 
 ### `adaptive_reasoning.py`
+
 Adaptive reasoning pattern discovery and dynamic strategy selection mechanisms.
 
 ### `discovery.py`
+
 Automated capability emergence detection and discovery workflows.
 
 ### `evaluation.py`
+
 Sakana-specific fitness functions and evaluation metrics for model evolution.
 
 ## Quick Reference
 
 For comprehensive integration details, see:
+
 - **Integration Roadmap**: [docs/sakana.md](../../docs/sakana.md)
 - **Main README**: [README.md](../../README.md)
 
@@ -57,6 +64,7 @@ result = optimizer.evolve(
 Wanna help out or contribute to Sakana integration efforts? Let us know.
 
 Key areas for contribution:
+
 - Implementing Sakana-inspired evolutionary algorithms
 - Model merging strategy experimentation
 - Fitness function design for model evolution
@@ -64,7 +72,8 @@ Key areas for contribution:
 
 ## Architecture Integration
 
-This module integrates with the existing Competitive Evolution framework:
+This module integrates with the existing EvoAgent framework:
+
 - **Dual-Pool Evolution**: Leverages existing competitive pool architecture
 - **Neo4j Lineage**: Tracks model evolution and merge history
 - **vLLM Inference**: Efficient model serving for evaluation
@@ -73,5 +82,4 @@ This module integrates with the existing Competitive Evolution framework:
 ## References
 
 - [Sakana AI Research](https://sakana.ai/)
-- [Competitive Evolution POC Documentation](../../README.md)
-- [Integration Roadmap](../../docs/sakana.md)
+- [EvoAgent Documentation](../../README.md)
