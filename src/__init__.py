@@ -1,4 +1,4 @@
-"""Competitive Evolution POC - Module initialization."""
+"""EvoAgent - Module initialization."""
 
 __version__ = "0.1.0"
 
