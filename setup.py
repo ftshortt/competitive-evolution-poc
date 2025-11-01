@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="competitive_evolution_poc",
+    name="evoagent",
     version="0.1.0",
     description="Production-ready competitive AI evolution framework (DeepSeek-R1 vs Qwen2.5-Coder)",
     author="ftshortt",
