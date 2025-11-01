@@ -1,4 +1,5 @@
 version: "3.9"
+
 services:
   frontend:
     build: ./frontend
@@ -9,6 +10,7 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+
   backend:
     build: ./backend
     ports:
@@ -23,6 +25,7 @@ services:
     depends_on:
       - neo4j
       - prometheus
+
   neo4j:
     image: neo4j:5.25
     environment:
@@ -32,6 +35,7 @@ services:
       - "7474:7474"
     volumes:
       - neo4j_data:/data
+
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -39,6 +43,7 @@ services:
     volumes:
       - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./infra/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -48,20 +53,23 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+
   pushgateway:
     image: prom/pushgateway:latest
     ports:
       - "9091:9091"
+
   evolution:
     build: .
-    image: ce-poc:evolution
+    image: evoagent:evolution
     environment:
       - NEO4J_URI=${NEO4J_URI}
       - NEO4J_USER=${NEO4J_USER}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-    command: ["python", "-m", "src.competitive_evolution"]
+    command: ["python", "-m", "src.evoagent"]
     depends_on:
       - neo4j
       - prometheus
+
 volumes:
   neo4j_data: {}
