@@ -25,6 +25,9 @@ try:
 except Exception:
     AS_FDVM_AVAILABLE = False
 
+# Sakana AI integration
+from backend.sakana_api import sakana_bp, init_sakana_api
+
 app = Flask(__name__)
 CORS(app)
 
@@ -51,6 +54,15 @@ lifecycle = LifecycleManager(neo4j_driver=neo4j_driver)
 # Bootstrap a persistent parent agent if none exists
 if not lifecycle.root_agents:
     root = lifecycle.create_root_agent(traits={'role': 'parent', 'domain': 'general'}, name='Parent Agent')
+
+# Register Sakana API blueprint and init
+app.register_blueprint(sakana_bp)
+init_sakana_api({
+    'sakana_work_dir': os.environ.get('SAKANA_WORK_DIR', '/workspace/sakana'),
+    'max_sakana_agents': int(os.environ.get('MAX_SAKANA_AGENTS', 4)),
+    'sakana_use_docker': os.environ.get('SAKANA_USE_DOCKER', 'true').lower() == 'true',
+    'sakana_gpu_enabled': os.environ.get('SAKANA_GPU_ENABLED', 'false').lower() == 'true',
+})
 
 # Phase 1 routes (existing)
 @app.route('/api/chat', methods=['POST'])
@@ -198,12 +210,6 @@ def api_query_pool_stats():
     domain = request.args.get('domain')
     stats = tracker.get_pool_statistics(pool=pool, domain=domain)
     return jsonify({'status': 'success', 'stats': stats})
-
-@app.route('/api/entities/migrate/default_domain', methods=['POST'])
-def api_migrate_default_domain():
-    default_domain = (request.get_json(force=True) or {}).get('default_domain', DEFAULT_DOMAIN)
-    s_count, t_count = tracker.migrate_assign_default_domain(default_domain)
-    return jsonify({'status': 'success', 'solutions_updated': s_count, 'tasks_updated': t_count})
 
 # Phase 2 blueprint registration with feature flag
 if PHASE_2_AVAILABLE and os.environ.get('PHASE_2_ENABLED', 'false').lower() == 'true':
