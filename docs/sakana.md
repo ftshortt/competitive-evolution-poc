@@ -6,15 +6,17 @@ This framework is designed to integrate with [Sakana AI's](https://sakana.ai/) e
 
 ## Architectural Alignment
 
-The Competitive Evolution POC shares several key principles with Sakana AI's research:
+The EvoAgent shares several key principles with Sakana AI's research:
 
 ### Evolutionary Computation
+
 - **Population-based search**: Dual-pool architecture maintains diverse solution populations
 - **Fitness-driven selection**: Automated evaluation and selection pressure drives optimization
 - **Mutation and crossover**: Variation operators enable exploration of solution space
 - **Competitive dynamics**: Multi-pool setup enables co-evolution and competitive pressure
 
 ### Model Evolution Support
+
 - **Weight merging capabilities**: Architecture supports model weight combination workflows
 - **Adaptive reasoning patterns**: Framework can discover and evolve reasoning strategies
 - **Cross-domain transfer**: Multi-domain entity system enables knowledge transfer across problem types
@@ -23,20 +25,25 @@ The Competitive Evolution POC shares several key principles with Sakana AI's res
 ## Current Capabilities
 
 ### Code Evolution (Current Implementation)
-The POC currently focuses on evolving code solutions:
+
+The EvoAgent currently focuses on evolving code solutions:
+
 - LLM-generated code variations (DeepSeek-R1 vs Qwen2.5-Coder)
 - Fitness evaluation through test execution
 - Graph-based lineage tracking
 - Real-time performance monitoring
 
 ### Multi-Domain Support (Phase 2)
+
 Extensible to multiple knowledge domains:
+
 - Code, behavior, physics, society, and custom domains
 - Cross-domain relationship mapping
 - Domain-specific fitness functions
 - Transfer learning across domains
 
 ### Human-in-the-Loop
+
 - Interactive selection and review
 - Guided evolution with human feedback
 - Manual intervention points for exploration
@@ -44,18 +51,21 @@ Extensible to multiple knowledge domains:
 ## Planned Sakana Integrations
 
 ### Phase 1: Foundation (Current)
+
 ✅ Evolutionary framework with fitness evaluation  
 ✅ Multi-pool competitive setup  
 ✅ Lineage and relationship tracking  
 ✅ Multi-domain entity support  
 
 ### Phase 2: Model Evolution Scaffolding
+
 🔄 Model weight evolution workflows  
 🔄 Merge strategy experimentation  
 🔄 Adaptive reasoning pattern discovery  
 🔄 Automated capability emergence detection  
 
 ### Phase 3: Advanced Sakana Features
+
 📋 Integration with Sakana's published frameworks  
 📋 Automated model discovery pipelines  
 📋 Large-scale evolutionary search  
@@ -77,52 +87,86 @@ src/sakana/
 └── evaluation.py         # Sakana-specific fitness functions
 ```
 
-This structure will provide:
-- Clean separation of Sakana-specific logic
-- Extensibility for new Sakana research implementations
-- Integration points with existing competitive evolution framework
+Current stub implementation exists at `src/sakana/__init__.py` for future expansion.
 
-## Technical Requirements
+### Placeholder: Merge Strategies
 
-To support Sakana AI integrations, the following infrastructure is in place or planned:
+Proposed merge functions for model weight combination:
 
-### Current Infrastructure
-- ✅ vLLM for efficient inference
-- ✅ Neo4j for relationship tracking
-- ✅ PostgreSQL for persistent storage
-- ✅ Grafana/Prometheus for observability
-- ✅ Celery for distributed task processing
+```python
+def merge_spherical_linear(model_a, model_b, alpha=0.5):
+    """SLERP (Spherical Linear Interpolation) for model weights."""
+    pass
 
-### Planned Additions
-- 🔄 Model weight storage and versioning
-- 🔄 Merge operation primitives
-- 🔄 Enhanced fitness evaluation for model-level evolution
-- 🔄 Sakana API integrations (if/when available)
+def merge_task_arithmetic(model_a, model_b, task_vector):
+    """Task arithmetic-based model merging."""
+    pass
 
-## Research References
+def merge_ties(models, density=0.2):
+    """TIES (Trim, Elect Sign, Merge) strategy."""
+    pass
+```
 
-Relevant Sakana AI research areas:
-- **Evolutionary Model Merge**: Automated discovery of optimal model combinations
-- **Adaptive Reasoning**: Dynamic strategy selection and reasoning pattern evolution
-- **Automated Discovery**: Self-improving AI systems through evolutionary computation
+### Placeholder: Adaptive Reasoning Patterns
 
-See [Sakana AI's research](https://sakana.ai/) for more details on their approach to evolutionary AI.
+```python
+def discover_reasoning_patterns(solutions, min_fitness=0.8):
+    """Extract common patterns from high-fitness solutions."""
+    pass
 
-## Contributing to Sakana Integration
+def apply_reasoning_pattern(pattern, new_problem):
+    """Apply discovered reasoning pattern to new problem."""
+    pass
+```
 
-Wanna help out or contribute to Sakana integration efforts? Let us know.
+## Usage Examples
 
-Areas where contributions would be valuable:
-- Implementing Sakana-inspired evolutionary algorithms
-- Model merging strategy experimentation
-- Fitness function design for model evolution
-- Integration with Sakana's published frameworks
-- Documentation and examples
+### Current: Code Evolution
 
-## Contact
+```python
+from src.utils import Neo4jLineageTracker, Task
 
-For questions about Sakana AI integration or collaboration opportunities, please reach out through the main repository.
+tracker = Neo4jLineageTracker()
+task = Task(domain="code", description="Sort array efficiently")
 
----
+# Evolution happens via LLM pools
+result = await evolve_solution(task)
+```
 
-*This document serves as a placeholder and roadmap for future Sakana AI integrations. The framework is designed to be extensible and welcomes contributions aligned with Sakana's evolutionary AI research.*
+### Future: Model Evolution
+
+```python
+from src.sakana import merge_spherical_linear, discover_reasoning_patterns
+
+# Merge models with evolutionary search
+merged_model = merge_spherical_linear(model_a, model_b, alpha=0.7)
+
+# Discover patterns from successful solutions
+patterns = discover_reasoning_patterns(high_fitness_solutions)
+```
+
+## Performance Monitoring
+
+Sakana-related metrics are exposed via:
+
+- **Prometheus**: Merge operation timings, pattern discovery stats
+- **Grafana**: Evolutionary search dashboards
+- **Neo4j**: Model lineage and capability graphs
+
+## References
+
+- [Sakana AI Research](https://sakana.ai/)
+- [Model Merging Techniques](https://arxiv.org/abs/2203.05482)
+- [Evolutionary Model Discovery](https://arxiv.org/abs/2403.13187)
+- [EvoAgent Documentation](../../README.md)
+
+## Contributing
+
+Sakana integration is in early scaffolding phase. Contributions welcome:
+
+1. Implement merge strategies in `src/sakana/merge.py`
+2. Add adaptive reasoning patterns in `src/sakana/adaptive_reasoning.py`
+3. Integrate with Sakana's published frameworks
+4. Add test coverage for new capabilities
+
+See `src/sakana/README.md` for detailed integration roadmap.
