@@ -1,9 +1,8 @@
 version: "3.9"
-
 services:
   frontend:
     build: ./frontend
-    container_name: ce-poc-frontend
+    container_name: evoagent-frontend
     restart: unless-stopped
     ports:
       - "3001:3001"
@@ -30,11 +29,10 @@ services:
           cpus: '0.5'
           memory: 512M
     networks:
-      - ce-network
-
+      - evoagent-network
   backend:
     build: ./backend
-    container_name: ce-poc-backend
+    container_name: evoagent-backend
     restart: unless-stopped
     ports:
       - "5000:5000"
@@ -74,11 +72,10 @@ services:
           cpus: '1.0'
           memory: 2G
     networks:
-      - ce-network
-
+      - evoagent-network
   neo4j:
     image: neo4j:5.25
-    container_name: ce-poc-neo4j
+    container_name: evoagent-neo4j
     restart: unless-stopped
     environment:
       - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD}
@@ -108,11 +105,10 @@ services:
           cpus: '1.0'
           memory: 2G
     networks:
-      - ce-network
-
+      - evoagent-network
   prometheus:
     image: prom/prometheus:v2.48.0
-    container_name: ce-poc-prometheus
+    container_name: evoagent-prometheus
     restart: unless-stopped
     ports:
       - "${PROMETHEUS_PORT:-9090}:9090"
@@ -139,11 +135,10 @@ services:
           cpus: '0.5'
           memory: 512M
     networks:
-      - ce-network
-
+      - evoagent-network
   grafana:
     image: grafana/grafana:10.2.2
-    container_name: ce-poc-grafana
+    container_name: evoagent-grafana
     restart: unless-stopped
     ports:
       - "${GRAFANA_PORT:-3000}:3000"
@@ -169,11 +164,10 @@ services:
           cpus: '0.25'
           memory: 256M
     networks:
-      - ce-network
-
+      - evoagent-network
   pushgateway:
     image: prom/pushgateway:v1.6.2
-    container_name: ce-poc-pushgateway
+    container_name: evoagent-pushgateway
     restart: unless-stopped
     ports:
       - "9091:9091"
@@ -191,11 +185,10 @@ services:
           cpus: '0.1'
           memory: 128M
     networks:
-      - ce-network
-
+      - evoagent-network
   ai_scientist:
     image: sakana-ai-scientist:latest
-    container_name: ce-poc-ai-scientist
+    container_name: evoagent-ai-scientist
     build: ./deploy/ai_scientist
     restart: unless-stopped
     deploy:
@@ -215,18 +208,17 @@ services:
       - ./sakana_work:/workspace
     command: ["sleep", "infinity"]
     networks:
-      - ce-network
-
+      - evoagent-network
   evolution:
     build: .
-    container_name: ce-poc-evolution
-    image: ce-poc:evolution
+    container_name: evoagent-evolution
+    image: evoagent:evolution
     restart: unless-stopped
     environment:
       - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
       - NEO4J_USER=${NEO4J_USER:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-    command: ["python", "-m", "src.competitive_evolution"]
+    command: ["python", "-m", "src.evo_agent"]
     depends_on:
       neo4j:
         condition: service_healthy
@@ -241,8 +233,7 @@ services:
           cpus: '1.0'
           memory: 2G
     networks:
-      - ce-network
-
+      - evoagent-network
 volumes:
   neo4j_data:
     driver: local
@@ -258,9 +249,8 @@ volumes:
     driver: local
   agent_workspaces:
     driver: local
-
 networks:
-  ce-network:
+  evoagent-network:
     driver: bridge
     ipam:
       config:
