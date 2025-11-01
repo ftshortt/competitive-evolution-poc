@@ -1,27 +1,22 @@
 #!/bin/bash
-
 set -euo pipefail
 
-# 🚀 Deploying PoC...
-echo "🚀 Deploying PoC..."
+# 🚀 Deploying EvoAgent...
+echo "🚀 Deploying EvoAgent..."
 echo ""
 
 # Check for dependencies
 echo "Checking dependencies..."
 missing_deps=()
-
 if ! command -v docker &> /dev/null; then
     missing_deps+=("docker")
 fi
-
 if ! command -v python3 &> /dev/null; then
     missing_deps+=("python3")
 fi
-
 if ! command -v nvidia-smi &> /dev/null; then
     missing_deps+=("nvidia-smi")
 fi
-
 if ! command -v curl &> /dev/null; then
     missing_deps+=("curl")
 fi
@@ -30,7 +25,6 @@ if [ ${#missing_deps[@]} -ne 0 ]; then
     echo "Error: Missing dependencies: ${missing_deps[*]}"
     exit 1
 fi
-
 echo "All dependencies found ✓"
 echo ""
 
@@ -46,7 +40,6 @@ else
     echo "Using existing virtual environment..."
     source venv/bin/activate
 fi
-
 echo "Python environment ready ✓"
 echo ""
 
@@ -77,43 +70,53 @@ for i in {1..30}; do
     if curl -s http://localhost:8001/health > /dev/null 2>&1; then
         health1=true
     fi
-    
     if curl -s http://localhost:8002/health > /dev/null 2>&1; then
         health2=true
     fi
     
     if [ "$health1" = true ] && [ "$health2" = true ]; then
-        echo "All endpoints healthy ✓"
+        echo "All services healthy ✓"
         break
     fi
     
     if [ $i -eq 30 ]; then
-        echo "Warning: Health checks did not complete in time"
-        echo "localhost:8001/health: $health1"
-        echo "localhost:8002/health: $health2"
+        echo "Warning: Not all services are healthy after 30 attempts"
+        echo "  Pool 1 (8001): $health1"
+        echo "  Pool 2 (8002): $health2"
+        echo "Continuing anyway..."
     fi
     
     sleep 2
 done
+echo ""
+
+# Import Grafana dashboard
+echo "Importing Grafana dashboard..."
+for i in {1..10}; do
+    if curl -s http://localhost:3000/api/health > /dev/null 2>&1; then
+        echo "Grafana is ready ✓"
+        break
+    fi
+    echo "Waiting for Grafana... ($i/10)"
+    sleep 3
+done
+
+echo "Importing dashboard JSON..."
+curl -X POST \
+  http://admin:admin@localhost:3000/api/dashboards/db \
+  -H 'Content-Type: application/json' \
+  -d @infra/grafana_dashboard.json
 
 echo ""
-echo "========================================"
-echo "🎉 PoC Deployment Complete!"
-echo "========================================"
+echo "🎉 EvoAgent Deployment Complete!"
 echo ""
-echo "Access your services:"
+echo "Access points:"
+echo "  - Neo4j Browser: http://localhost:7474"
+echo "  - Prometheus: http://localhost:9090"
+echo "  - Grafana: http://localhost:3000 (admin/admin)"
+echo "  - vLLM Pool 1 (DeepSeek-R1): http://localhost:8001"
+echo "  - vLLM Pool 2 (Qwen2.5-Coder): http://localhost:8002"
 echo ""
-echo "📊 Grafana:    http://localhost:3000"
-echo "   Username: admin"
-echo "   Password: evolution2025"
+echo "To start the evolution system:"
+echo "  make run"
 echo ""
-echo "📈 Prometheus: http://localhost:9090"
-echo ""
-echo "🔍 Neo4j:      http://localhost:7474"
-echo "   Username: neo4j"
-echo "   Password: evolution2025"
-echo ""
-echo "Services are running in the background."
-echo "Use 'docker-compose logs -f' to view logs."
-echo "Use './deploy/shutdown_pools.sh && docker-compose down' to stop."
-echo "========================================"
