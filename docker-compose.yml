@@ -16,10 +16,14 @@ services:
     volumes:
       - ./backend:/app
       - ./src:/app/src
+      - ./sakana_work:/workspace/sakana
     environment:
       - NEO4J_URI=${NEO4J_URI}
       - NEO4J_USER=${NEO4J_USER}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
+      - SAKANA_WORK_DIR=/workspace/sakana
+      - SAKANA_USE_DOCKER=true
+      - SAKANA_GPU_ENABLED=${SAKANA_GPU_ENABLED:-false}
     depends_on:
       - neo4j
       - prometheus
@@ -52,6 +56,19 @@ services:
     image: prom/pushgateway:latest
     ports:
       - "9091:9091"
+  ai_scientist:
+    image: sakana-ai-scientist:latest
+    build: ./deploy/ai_scientist
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=${NVIDIA_VISIBLE_DEVICES:-all}
+    volumes:
+      - ./sakana_work:/workspace
+    command: ["sleep", "infinity"]
   evolution:
     build: .
     image: ce-poc:evolution
