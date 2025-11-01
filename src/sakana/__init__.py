@@ -14,7 +14,7 @@ For detailed information, see docs/sakana.md
 """
 
 __version__ = "0.1.0"
-__author__ = "Competitive Evolution POC Team"
+__author__ = "EvoAgent Team"
 
 # Placeholder imports for future modules
 # from .merge import ModelMerger
