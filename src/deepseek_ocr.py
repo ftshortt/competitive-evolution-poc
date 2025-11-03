@@ -1,4 +1,5 @@
- """DeepSeek-OCR Agent Module
+"""DeepSeek-OCR Agent Module
+
 This module provides integration for DeepSeek-OCR as a competitive agent
 in the EvoAgent framework. DeepSeek-OCR specializes in optical character
 recognition and document understanding tasks.
@@ -6,6 +7,7 @@ recognition and document understanding tasks.
 Updated: Expose evolvable weight-like configuration knobs so the evolution
 engine can update, merge, and mutate them to produce offspring (AZR pattern).
 """
+
 import os
 import time
 from typing import Dict, Any, Optional
@@ -15,16 +17,16 @@ import requests
 
 class DeepSeekOCRAgent:
     """DeepSeek-OCR Agent for OCR and document understanding tasks.
-
+    
     Exposes an ocr(...) method that accepts raw image bytes. For evolutionary
     updates, higher-level wrappers (e.g., EvolvableDeepSeekOCR) can pass
     configuration controlling preprocessing and postprocessing.
     """
-
+    
     def __init__(self, api_key: Optional[str] = None, model: str = "deepseek-ocr"):
         """
         Initialize DeepSeek-OCR agent.
-
+        
         Args:
             api_key: DeepSeek API key (defaults to DEEPSEEK_API_KEY env var)
             model: Model identifier for DeepSeek-OCR
@@ -38,7 +40,7 @@ class DeepSeekOCRAgent:
             "failed_calls": 0,
             "total_tokens": 0,
         }
-
+    
     def ocr(self, image_bytes: bytes,
             resize_scale: float = 1.0,
             binarize_threshold: float = 0.5,
@@ -48,7 +50,7 @@ class DeepSeekOCRAgent:
         """
         Process an image with OCR capabilities using configurable knobs that are
         considered evolvable weights by the evolution engine.
-
+        
         Args:
             image_bytes: Raw bytes of the image
             resize_scale: Optional pre-resize factor
@@ -56,11 +58,12 @@ class DeepSeekOCRAgent:
             language_hint: Language hint for OCR
             enable_layout: Whether to enable layout/structure extraction
             postprocess: Dict of post-processing flags/params
+        
         Returns:
             Dict containing OCR results and metadata
         """
         self.stats["total_calls"] += 1
-
+        
         try:
             # Placeholder preprocessing that would use resize_scale/binarize_threshold
             # to guide a local preprocessing pipeline before API call.
@@ -77,21 +80,29 @@ class DeepSeekOCRAgent:
                     "postprocess": postprocess or {},
                 },
             }
-            # response = self._call_api(payload)
-            # For now, return a structured response template
+            
+            response = self._call_api(payload)
+            
+            # Extract OCR results from API response
             result = {
-                "status": "pending_implementation",
+                "status": "success",
                 "model": self.model,
-                "text": "[OCR text will be extracted here]",
-                "confidence": 0.0,
+                "text": response.get("text", ""),
+                "confidence": response.get("confidence", 0.0),
                 "metadata": {
                     "timestamp": time.time(),
                     "options": payload["options"],
+                    "usage": response.get("usage", {}),
                 },
-                "note": "DeepSeek-OCR pipeline integration pending",
             }
+            
+            # Track token usage if available
+            if "usage" in response and "total_tokens" in response["usage"]:
+                self.stats["total_tokens"] += response["usage"]["total_tokens"]
+            
             self.stats["successful_calls"] += 1
             return result
+            
         except Exception as e:
             self.stats["failed_calls"] += 1
             return {
@@ -99,32 +110,69 @@ class DeepSeekOCRAgent:
                 "error": str(e),
                 "model": self.model,
             }
-
+    
     def _call_api(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
         Make API call to DeepSeek-OCR service.
-
-        NOTE: This is where the actual OCR processing pipeline should be attached.
-        Implementation steps:
-        1. Construct API request with proper headers
-        2. Send request to DeepSeek-OCR endpoint
-        3. Parse response and extract OCR results
+        
+        Args:
+            payload: Request payload containing image and options
+        
+        Returns:
+            API response containing OCR results
+        
+        Raises:
+            ValueError: If API key is not provided
+            requests.HTTPError: If API request fails
+            requests.Timeout: If request times out
+            Exception: For other API-related errors
         """
         if not self.api_key:
             raise ValueError("DeepSeek API key not provided")
+        
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
-        # resp = requests.post(f"{self.base_url}/ocr", headers=headers, json=payload, timeout=60)
-        # resp.raise_for_status()
-        # return resp.json()
-        raise NotImplementedError("API call implementation pending")
-
+        
+        try:
+            # Make POST request to DeepSeek-OCR endpoint
+            response = requests.post(
+                f"{self.base_url}/ocr",
+                headers=headers,
+                json=payload,
+                timeout=60
+            )
+            
+            # Raise exception for HTTP errors (4xx, 5xx)
+            response.raise_for_status()
+            
+            # Parse and return JSON response
+            result = response.json()
+            
+            return result
+            
+        except requests.Timeout:
+            raise Exception("API request timed out after 60 seconds")
+        except requests.HTTPError as e:
+            # Extract error message from response if available
+            error_msg = f"API request failed with status {response.status_code}"
+            try:
+                error_detail = response.json().get("error", {}).get("message", "")
+                if error_detail:
+                    error_msg += f": {error_detail}"
+            except:
+                pass
+            raise Exception(error_msg) from e
+        except requests.RequestException as e:
+            raise Exception(f"API request failed: {str(e)}") from e
+        except ValueError as e:
+            raise Exception(f"Failed to parse API response: {str(e)}") from e
+    
     def get_stats(self) -> Dict[str, Any]:
         """Return agent statistics."""
         return self.stats.copy()
-
+    
     def reset_stats(self) -> None:
         """Reset agent statistics."""
         for key in self.stats:
@@ -139,7 +187,9 @@ def create_ocr_agent(api_key: Optional[str] = None) -> DeepSeekOCRAgent:
 if __name__ == "__main__":
     # Example usage
     agent = create_ocr_agent()
+    
     # Test with a sample image (fake bytes here as placeholder)
     result = agent.ocr(image_bytes=b"\x89PNG...", language_hint="en")
     print(f"OCR Result: {result}")
     print(f"Agent Stats: {agent.get_stats()}")
+a
