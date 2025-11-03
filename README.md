@@ -1,9 +1,11 @@
 # EvoAgent
 
 ## Overview
+
 EvoAgent is an evolutionary AI system that enables agents to adapt, compete, and improve through natural selection principles. Built on the AS-FDVM (Adaptive Search - Fractal Darwinian Virtual Machines) architecture, EvoAgent creates a competitive ecosystem where multiple AI agents evolve solutions through mutation, adaptation, and competitive evolution.
 
 ### Key Benefits
+
 - Self-Improving Agents: Agents autonomously update their weights, merge strategies, and produce offspring with enhanced capabilities
 - Competitive Evolution: Multiple specialized agents (DeepSeek-R1, Qwen2.5-Coder, DeepSeek-OCR) compete and evolve simultaneously
 - Adaptive Intelligence: Dynamic categorization across exploration, exploitation, innovation, stabilization, and adaptation strategies
@@ -11,24 +13,81 @@ EvoAgent is an evolutionary AI system that enables agents to adapt, compete, and
 - Real-time Monitoring: Built-in metrics, graph visualization, and drift detection for evolutionary progress
 
 ## Evolutionary Weight Updates and Hybridization (NEW)
-Patterned after the AZR project’s live weight-update and hybridization demos, EvoAgent now supports:
+
+Patterned after the AZR project's live weight-update and hybridization demos, EvoAgent now supports:
+
 - In-run weight updates: Agents can update weights/state without restarts via a standard interface
 - Merge/mix/mutation: Parents can be merged (alpha-blend), mixed recursively, and mutated to spawn offspring
 - Offspring lineage: Parentage and weight summaries are recorded to Neo4j for transparent evolution tracking
-- API-only models support: For hosted models without raw weight access, “weights” are evolvable configuration/state (prompts, adapters, thresholds, OCR options) that drive measurable behavior changes
+- API-only models support: For hosted models without raw weight access, "weights" are evolvable configuration/state (prompts, adapters, thresholds, OCR options) that drive measurable behavior changes
 
 Code highlights:
+
 - src/competitive_evolution.py
   - AgentWeightMixin with get_weights/set_weights/update_weights
   - merge_weights and mutate_weights utilities (AZR-style hybridization)
   - produce_offspring(...) pipeline and lineage logging
   - Generation loop to evaluate, select, reproduce, and update
+
 - src/deepseek_ocr.py
   - DeepSeekOCRAgent now accepts evolvable config via ocr(image_bytes, ...)
   - Evolvable wrapper class in competitive_evolution.py (EvolvableDeepSeekOCR) treats OCR knobs as weights
 
-## What’s New
+## What's New
+
+### Evolvable Agent Wrappers (NEW)
+
+**DeepSeek-R1 Agent** (`src/deepseek_r1.py`)
+- Evolvable wrapper for DeepSeek-R1 reasoning model
+- Configurable parameters: temperature, max_tokens, reasoning_effort (low/medium/high)
+- Full get/set/update_weights support for evolutionary optimization
+- Stub API implementation ready for integration
+- Mutation and crossover methods for offspring generation
+
+**Qwen2.5-Coder Agent** (`src/qwen_coder.py`)
+- Evolvable wrapper for Qwen2.5-Coder coding model
+- Configurable parameters: temperature, max_tokens, top_p, top_k, repetition_penalty
+- Code generation and analysis capabilities
+- Full get/set/update_weights support
+- Mutation and crossover methods for genetic algorithms
+- Context-aware code generation
+
+**Usage Example:**
+```python
+from src.deepseek_r1 import EvolvableDeepSeekR1
+from src.qwen_coder import EvolvableQwenCoder
+
+# Initialize agents
+r1_agent = EvolvableDeepSeekR1(
+    api_key="your-key",
+    temperature=1.0,
+    reasoning_effort="medium"
+)
+
+qwen_agent = EvolvableQwenCoder(
+    api_key="your-key",
+    temperature=0.7,
+    top_p=0.95
+)
+
+# Get current configuration
+weights = r1_agent.get_weights()
+
+# Update configuration
+r1_agent.update_weights({"temperature": 0.1})
+
+# Create mutated offspring
+offspring = r1_agent.mutate(mutation_rate=0.1)
+
+# Generate code with Qwen
+result = qwen_agent.generate_code(
+    "Write a function to calculate Fibonacci numbers",
+    system_prompt="You are an expert Python developer"
+)
+```
+
 ### DeepSeek-OCR Integration
+
 - Third Competitive Agent: DeepSeek-OCR added for OCR and document understanding
 - Module: src/deepseek_ocr.py – provides DeepSeekOCRAgent class with an API scaffold
 - Agent Features:
@@ -38,7 +97,8 @@ Code highlights:
 - Configuration: Set DEEPSEEK_API_KEY for API access
 
 ## Roadmap / Future Enhancements
-- Generalize evolvable wrappers for R1 and Qwen (prompt adapters, decoding params, tool-use configs)
+
+- Complete API integration for DeepSeek-R1, Qwen2.5-Coder, and DeepSeek-OCR (currently stub implementations)
 - Add crossover operators beyond alpha-blend (mask-based, per-parameter sampling, ensemble distillation)
 - Fitness functions per domain (OCR accuracy, latency, coding task pass@k, reasoning depth/score)
 - Persistent weight repositories per generation with rollback and A/B runners
@@ -48,6 +108,7 @@ Code highlights:
 - Full DeepSeek-OCR API integration and GPU-accelerated pre/postprocessing
 
 ## Core AS-FDVM Features
+
 - Backend: backend/asfdvm.py
 - Categories: exploration, exploitation, innovation, stabilization, adaptation
 - Agent lifecycle: spawn, mutate, retire; topic drift tracking and hints
@@ -59,39 +120,9 @@ Code highlights:
   - POST /spawn { category?, parent_id? }
   - GET  /graph
   - GET  /status
+
 - Frontend updates
   - ChatPane.jsx: category bubbles, seamless categorization after each message, drift hints, Dev/User toggle
   - GraphPane.jsx: group-by Category or Generation using backend /graph
   - MetricsPane.jsx: category evolution and recent drift from /status
-  - ControlPane.jsx: lifecycle operations (spawn by category), mode toggle
-- docker-compose.yml: unchanged service layout, compatible with existing setup
-
-## How to run
-- Local dev
-  - Backend: uvicorn/flask from backend/ (Flask dev server already configured at port 5000 in app.py)
-  - Frontend: vite dev server at port 3001
-  - Ensure Neo4j and Prometheus/Grafana per existing compose
-- Compose
-  - docker compose up --build
-
-## API quick test
-- curl -X POST localhost:5000/categorize -H 'Content-Type: application/json' -d '{"text":"try a new approach"}'
-- curl -X POST localhost:5000/spawn -H 'Content-Type: application/json' -d '{"category":"innovation"}'
-- curl localhost:5000/graph
-- curl localhost:5000/status
-
-## DeepSeek-OCR Usage
-### Basic OCR Agent Usage
-```python
-from src.deepseek_ocr import create_ocr_agent
-# Initialize agent
-ocr_agent = create_ocr_agent(api_key="your-api-key")
-# Process an image (bytes). See evolvable wrapper in competitive_evolution.py
-result = ocr_agent.ocr(image_bytes=b"\x89PNG...", language_hint="en")
-# Get statistics
-stats = ocr_agent.get_stats()
-```
-
-## Notes
-- ML/NLP logic is scaffolded; replace stubs with production models
-- For API-only models, treat configuration/state as evolvable “weights”
+  - ControlPane.jsx: lifecycle operations (spawn by category), mode togglea
