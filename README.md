@@ -1,150 +1,77 @@
 # EvoAgent
+
 ## Overview
 EvoAgent is an evolutionary AI system that enables agents to adapt, compete, and improve through natural selection principles. Built on the AS-FDVM (Adaptive Search - Fractal Darwinian Virtual Machines) architecture, EvoAgent creates a competitive ecosystem where multiple AI agents evolve solutions through mutation, adaptation, and competitive evolution.
-### Key Benefits
-- Self-Improving Agents: Agents autonomously update their weights, merge strategies, and produce offspring with enhanced capabilities
-- Competitive Evolution: Multiple specialized agents (DeepSeek-R1, Qwen2.5-Coder, DeepSeek-OCR) compete and evolve simultaneously
-- Adaptive Intelligence: Dynamic categorization across exploration, exploitation, innovation, stabilization, and adaptation strategies
-- Fractal Architecture: Hierarchical agent spawning with parent-child relationships and generational tracking
-- Real-time Monitoring: Built-in metrics, graph visualization, and drift detection for evolutionary progress
-## Evolutionary Weight Updates and Hybridization (NEW)
-Patterned after the AZR project's live weight-update and hybridization demos, EvoAgent now supports:
-- In-run weight updates: Agents can update weights/state without restarts via a standard interface
-- Merge/mix/mutation: Parents can be merged (alpha-blend), mixed recursively, and mutated to spawn offspring
-- Offspring lineage: Parentage and weight summaries are recorded to Neo4j for transparent evolution tracking
-- API-only models support: For hosted models without raw weight access, "weights" are evolvable configuration/state (prompts, adapters, thresholds, OCR options) that drive measurable behavior changes
-Code highlights:
-- src/competitive_evolution.py
-  - AgentWeightMixin with get_weights/set_weights/update_weights
-  - merge_weights and mutate_weights utilities (AZR-style hybridization)
-  - produce_offspring(...) pipeline and lineage logging
-  - Generation loop to evaluate, select, reproduce, and update
-- src/deepseek_ocr.py
-  - DeepSeekOCRAgent now accepts evolvable config via ocr(image_bytes, ...)
-  - Evolvable wrapper class in competitive_evolution.py (EvolvableDeepSeekOCR) treats OCR knobs as weights
-## What's New
-### Evolvable Agent Wrappers (NEW)
-**DeepSeek-R1 Agent** (`src/deepseek_r1.py`)
-- Evolvable wrapper for DeepSeek-R1 reasoning model
-- Configurable parameters: temperature, max_tokens, reasoning_effort (low/medium/high)
-- Full get/set/update_weights support for evolutionary optimization
-- Stub API implementation ready for integration
-- Mutation and crossover methods for offspring generation
-**Qwen2.5-Coder Agent** (`src/qwen_coder.py`)
-- Evolvable wrapper for Qwen2.5-Coder coding model
-- Configurable parameters: temperature, max_tokens, top_p, top_k, repetition_penalty
-- Code generation and analysis capabilities
-- Full get/set/update_weights support
-- Mutation and crossover methods for genetic algorithms
-- Context-aware code generation
-**Usage Example:**
-```python
-from src.deepseek_r1 import EvolvableDeepSeekR1
-from src.qwen_coder import EvolvableQwenCoder
-# Initialize agents
-r1_agent = EvolvableDeepSeekR1(
-    api_key="your-key",
-    temperature=1.0,
-    reasoning_effort="medium"
-)
-qwen_agent = EvolvableQwenCoder(
-    api_key="your-key",
-    temperature=0.7,
-    top_p=0.95
-)
-# Get current configuration
-weights = r1_agent.get_weights()
-# Update configuration
-r1_agent.update_weights({"temperature": 0.1})
-# Create mutated offspring
-offspring = r1_agent.mutate(mutation_rate=0.1)
-# Generate code with Qwen
-result = qwen_agent.generate_code(
-    "Write a function to calculate Fibonacci numbers",
-    system_prompt="You are an expert Python developer"
-)
-```
-### DeepSeek-OCR Integration
-- Third Competitive Agent: DeepSeek-OCR added for OCR and document understanding
-- Module: src/deepseek_ocr.py – provides DeepSeekOCRAgent class with an API scaffold
-- Agent Features:
-  - Image/document OCR (pipeline scaffold), stats tracking
-  - Evolvable configuration knobs: resize_scale, binarize_threshold, language_hint, layout, postprocess
-- Competitive Evolution: Participates alongside R1 and Qwen in the evolution loop
-- Configuration: Set DEEPSEEK_API_KEY for API access
-## Roadmap / Future Enhancements
-- Complete API integration for DeepSeek-R1, Qwen2.5-Coder, and DeepSeek-OCR (currently stub implementations)
-- Add crossover operators beyond alpha-blend (mask-based, per-parameter sampling, ensemble distillation)
-- Fitness functions per domain (OCR accuracy, latency, coding task pass@k, reasoning depth/score)
-- Persistent weight repositories per generation with rollback and A/B runners
-- Advanced mutation schedules (annealed noise, novelty/curiosity-driven exploration)
-- Multi-parent hybridization and species niches; tournament selection and elitism
-- Distributed evaluation with checkpointing and failure recovery
-- Full DeepSeek-OCR API integration and GPU-accelerated pre/postprocessing
-## Core AS-FDVM Features
-- Backend: backend/asfdvm.py
-- Categories: exploration, exploitation, innovation, stabilization, adaptation
-- Agent lifecycle: spawn, mutate, retire; topic drift tracking and hints
-- Adaptive search: simple scoring by fitness/interactions (placeholder for semantic search)
-- Graph/status: nodes/edges grouped by category and generation; category stats and recent drift
-- Flask routes (backward compatible):
-  - POST /categorize { text }
-  - POST /tag { content, context? }
-  - POST /spawn { category?, parent_id? }
-  - GET  /graph
-  - GET  /status
-- Frontend updates
-  - ChatPane.jsx: category bubbles, seamless categorization after each message, drift hints, Dev/User toggle
-  - GraphPane.jsx: group-by Category or Generation using backend /graph
-  - MetricsPane.jsx: category evolution and recent drift from /status
-  - ControlPane.jsx: lifecycle operations (spawn by category), mode toggle
-## Installation
+
+## AZR-derived Best Practices and New Features
+The following capabilities were integrated by adapting Absolute-Zero-Reasoner (AZR) best practices to EvoAgent.
+
+### 1) Robust FSDP+QLoRA wrapper for fine-tuning (OCR, R1, Qwen)
+- Freeze → Inject → Wrap sequence to ensure compatibility between FSDP and QLoRA
+- 4-bit quantization with nf4 + bfloat16 compute for memory efficiency
+- Frequent checkpointing and safe adapter-only saves
+- Distributed initialization with LOCAL_RANK handling
+
+Code:
+- src/fsdp_qlora_wrapper.py
+  - create_ocr_agent()
+  - create_r1_agent()
+  - create_qwen_agent()
+
+Usage example (single node, multi-GPU):
 ```bash
-# Clone the repository
-git clone https://github.com/ftshortt/evoagent.git
-cd evoagent
-# Install dependencies
+torchrun --nproc_per_node=NUM_GPUS -m src.agent_orchestrator
+```
+Environment:
+```bash
+export EVO_AGENT=qwen   # or r1, ocr
+```
+
+### 2) Cyclical/auto-stopping orchestration pipeline for agent evolution
+- Cyclic training/evolution loops with:
+  - Auto-stop on max steps or max runtime
+  - Checkpoint every 2 steps with validation hooks
+  - Strict run separation via run_id (each run in ./runs/<timestamp>)
+- Consolidation hook after cycles to produce exportable artifacts
+
+Code:
+- src/agent_orchestrator.py (entrypoint)
+
+### 3) Artifact-safe merging and validation utilities for evolved agents
+- Validate LoRA checkpoints before merge
+- Merge base + adapters into standalone artifact (PEFT merge_and_unload)
+- Write CHECKSUMS.txt for reproducibility and audit
+
+Code:
+- src/artifact_merger.py
+
+### 4) Strict experiment data separation and checkpointing
+- All runs stored under ./runs/<run_id>/
+- Checkpoints saved under ./runs/<run_id>/ckpts/checkpoint-<step>
+- metadata.json per checkpoint for validation and lineage tracking
+- Designed to be resilient to interruptions and dataset exhaustion
+
+## Quickstart
+1) Install requirements
+```bash
 pip install -r requirements.txt
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your API keys
 ```
-## Usage
+
+2) Choose agent and launch orchestrator
 ```bash
-# Start the backend
-python backend/asfdvm.py
-# In a new terminal, start the frontend
-cd frontend
-npm install
-npm start
+export EVO_AGENT=qwen  # or r1, ocr
+torchrun --nproc_per_node=2 -m src.agent_orchestrator
 ```
-## License
-MIT License - see LICENSE file for details
 
-## Credits & Attribution
+3) Output locations
+- Checkpoints: ./runs/<run_id>/ckpts/
+- Final artifact (after consolidation): see src/artifact_merger.py utilities
 
-This project was created by **Comet Browser AI** with valuable input from **ChatGPT** and **Gemini**, and directed by **ftshortt**.
+## Extending
+- Plug in your training step in EvoAgentOrchestrator.train_step()
+- Integrate production fitness/validation in validate_checkpoint() and/or src/production_fitness.py
+- Expand consolidation to call a full merge/export pipeline suitable for deployment
 
-## Contributing
-
-**All input is welcome!** We encourage contributions from the community:
-
-- Submit issues for bugs or feature requests
-- Open pull requests with improvements
-- Share your ideas and suggestions
-- Join the discussion and help improve EvoAgent
-
-Your contributions help make this project better for everyone!
-
-## Hardware Challenge
-
-**Calling all GitHub users with high-end hardware!**
-
-We challenge you to test and run EvoAgent on powerful hardware configurations. This project involves evolutionary algorithms, competitive AI agents, and complex graph operations that could benefit significantly from:
-
-- Multi-GPU setups
-- High-core-count CPUs
-- Large memory configurations
-- Distributed computing environments
-
-If you have access to better hardware, we'd love to see how EvoAgent performs! Please share your results, benchmarks, and any optimizations you discover. Let's push the boundaries of what evolutionary AI can achieve!
+## Notes
+- These integrations were adapted from the AZR SINGLE_GPU pipeline and consolidation scripts with adjustments for EvoAgent’s modular architecture.
+- Ensure CUDA + NCCL are configured for FSDP. Prefer bfloat16-capable GPUs.
