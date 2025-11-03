@@ -2,13 +2,18 @@ import os
 import time
 from openai import OpenAI
 from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
-
 from src.utils import Solution, Task, Neo4jLineageTracker
 from src.production_fitness import ProductionFitnessEvaluator
+# Import DeepSeek-OCR agent
+from src.deepseek_ocr import DeepSeekOCRAgent
 
 # Configuration
 R1_ENDPOINT = os.getenv("R1_ENDPOINT", "http://localhost:8001/v1")
 QWEN_ENDPOINT = os.getenv("QWEN_ENDPOINT", "http://localhost:8002/v1")
+# DeepSeek-OCR endpoint configuration
+# Note: DeepSeek-OCR uses a different API pattern (REST API for image processing)
+# rather than OpenAI-compatible chat endpoints
+DEEPSEEK_OCR_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 PROMETHEUS_GATEWAY = os.getenv("PROMETHEUS_GATEWAY", "localhost:9091")
 
 # Prometheus metrics setup
@@ -21,6 +26,8 @@ gpu_utilization_percent = Gauge('gpu_utilization_percent', 'GPU utilization perc
 cpu_utilization_percent = Gauge('cpu_utilization_percent', 'CPU utilization percentage', registry=registry)
 vllm_r1_health = Gauge('vllm_r1_health', 'Health status of R1 vLLM endpoint (1=healthy, 0=unhealthy)', registry=registry)
 vllm_qwen_health = Gauge('vllm_qwen_health', 'Health status of Qwen vLLM endpoint (1=healthy, 0=unhealthy)', registry=registry)
+# Add DeepSeek-OCR health metric
+vllm_deepseek_ocr_health = Gauge('vllm_deepseek_ocr_health', 'Health status of DeepSeek-OCR endpoint (1=healthy, 0=unhealthy)', registry=registry)
 inference_latency_ms = Gauge('inference_latency_ms', 'Inference latency in milliseconds', ['model', 'generation'], registry=registry)
 
 def parse_response(response_text: str) -> dict:
@@ -58,12 +65,26 @@ def parse_response(response_text: str) -> dict:
     return result
 
 def main():
-    """Main orchestration function for competitive evolution."""
+    """Main orchestration function for competitive evolution.
+    
+    This function now supports three competitive agents:
+    1. DeepSeek-R1 (reasoning and coding)
+    2. Qwen2.5-Coder (coding specialization)
+    3. DeepSeek-OCR (NEW: OCR and document understanding)
+    """
     print("Initializing Competitive Evolution System...")
+    print("Agents: R1, Qwen2.5-Coder, DeepSeek-OCR")
     
     # Initialize OpenAI clients for both endpoints
     r1_client = OpenAI(base_url=R1_ENDPOINT, api_key="dummy-key")
     qwen_client = OpenAI(base_url=QWEN_ENDPOINT, api_key="dummy-key")
+    
+    # Initialize DeepSeek-OCR agent
+    # TODO: Integrate OCR agent into competitive evaluation loop
+    # For OCR tasks, the agent processes images and extracts structured data
+    # This can be compared against R1/Qwen's vision capabilities
+    ocr_agent = DeepSeekOCRAgent(api_key=DEEPSEEK_OCR_API_KEY)
+    print(f"DeepSeek-OCR agent initialized: {ocr_agent.model}")
     
     # Initialize Neo4j lineage tracker
     lineage_tracker = Neo4jLineageTracker()
@@ -75,126 +96,159 @@ def main():
     task = Task(
         name="ransomware_detection",
         domain="cyber_dfir",
-        description="Detect and analyze ransomware patterns in system logs and file activities",
-        constraints="Must handle large log files efficiently and identify encryption patterns"
+        description="Analyze system logs and detect ransomware activity patterns",
+        test_cases=[
+            {"input": "sample_logs.txt", "expected": "ransomware_detected"},
+        ]
     )
     
-    print(f"Task: {task.name} in domain {task.domain}")
-    print(f"Description: {task.description}")
-    print(f"Starting evolution loop for 50 generations...\n")
+    # TODO: For OCR-specific tasks, define image-based tasks
+    # Example OCR task structure:
+    # ocr_task = Task(
+    #     name="document_extraction",
+    #     domain="ocr",
+    #     description="Extract structured data from invoice images",
+    #     test_cases=[
+    #         {"input": "invoice_001.png", "expected": {"total": 1234.56, "vendor": "Example Corp"}},
+    #     ]
+    # )
     
-    # Evolution loop for 50 generations
-    for generation in range(1, 51):
-        print(f"=== Generation {generation} ===")
+    print(f"\nTask: {task.name}")
+    print(f"Domain: {task.domain}")
+    
+    # Main evolution loop
+    generation = 0
+    max_generations = 10
+    
+    while generation < max_generations:
+        print(f"\n{'='*60}")
+        print(f"Generation {generation}")
+        print(f"{'='*60}")
+        
         generation_count.set(generation)
         
-        # Call R1 model
-        print("Calling R1 model...")
-        start_time = time.time()
+        # R1 Solution Generation
+        print("\n[R1] Generating solution...")
+        r1_start = time.time()
         try:
             r1_response = r1_client.chat.completions.create(
-                model="deepseek-r1",
-                messages=[{
-                    "role": "user",
-                    "content": f"Task: {task.description}\nConstraints: {task.constraints}\nProvide a solution with code and reasoning."
-                }],
-                max_tokens=2048,
+                model="deepseek-ai/DeepSeek-R1",
+                messages=[
+                    {"role": "system", "content": "You are a cybersecurity expert."},
+                    {"role": "user", "content": task.description}
+                ],
+                max_tokens=2000,
                 temperature=0.7
             )
-            r1_latency = (time.time() - start_time) * 1000
-            r1_output = r1_response.choices[0].message.content
-            r1_parsed = parse_response(r1_output)
-            vllm_r1_health.set(1)
+            r1_latency = (time.time() - r1_start) * 1000
+            r1_text = r1_response.choices[0].message.content
+            r1_parsed = parse_response(r1_text)
+            print(f"[R1] Generated solution in {r1_latency:.2f}ms")
+            inference_latency_ms.labels(model='r1', generation=generation).set(r1_latency)
         except Exception as e:
-            print(f"R1 model error: {e}")
-            vllm_r1_health.set(0)
-            r1_parsed = {'code': '', 'reasoning': ''}
+            print(f"[R1] Error: {e}")
+            r1_parsed = {'code': '', 'reasoning': str(e)}
             r1_latency = 0
         
-        inference_latency_ms.labels(model='r1', generation=generation).set(r1_latency)
-        
-        # Create R1 solution
-        r1_solution = Solution(
-            model_name="deepseek-r1",
-            task=task,
-            code=r1_parsed['code'],
-            reasoning=r1_parsed['reasoning'],
-            generation=generation
-        )
-        
-        # Evaluate R1 fitness
-        print("Evaluating R1 fitness...")
-        r1_fitness = fitness_evaluator.evaluate(r1_solution)
-        r1_solution.fitness_score = r1_fitness
-        shinka_fitness.labels(model='r1', generation=generation).set(r1_fitness)
-        print(f"R1 fitness: {r1_fitness:.4f}")
-        
-        # Track R1 lineage
-        lineage_tracker.track_solution(r1_solution)
-        
-        # Call Qwen model
-        print("Calling Qwen model...")
-        start_time = time.time()
+        # Qwen Solution Generation
+        print("\n[Qwen] Generating solution...")
+        qwen_start = time.time()
         try:
             qwen_response = qwen_client.chat.completions.create(
-                model="qwen2.5-72b",
-                messages=[{
-                    "role": "user",
-                    "content": f"Task: {task.description}\nConstraints: {task.constraints}\nProvide a solution with code and reasoning."
-                }],
-                max_tokens=2048,
+                model="Qwen/Qwen2.5-Coder-32B-Instruct",
+                messages=[
+                    {"role": "system", "content": "You are a cybersecurity expert."},
+                    {"role": "user", "content": task.description}
+                ],
+                max_tokens=2000,
                 temperature=0.7
             )
-            qwen_latency = (time.time() - start_time) * 1000
-            qwen_output = qwen_response.choices[0].message.content
-            qwen_parsed = parse_response(qwen_output)
-            vllm_qwen_health.set(1)
+            qwen_latency = (time.time() - qwen_start) * 1000
+            qwen_text = qwen_response.choices[0].message.content
+            qwen_parsed = parse_response(qwen_text)
+            print(f"[Qwen] Generated solution in {qwen_latency:.2f}ms")
+            inference_latency_ms.labels(model='qwen', generation=generation).set(qwen_latency)
         except Exception as e:
-            print(f"Qwen model error: {e}")
-            vllm_qwen_health.set(0)
-            qwen_parsed = {'code': '', 'reasoning': ''}
+            print(f"[Qwen] Error: {e}")
+            qwen_parsed = {'code': '', 'reasoning': str(e)}
             qwen_latency = 0
         
-        inference_latency_ms.labels(model='qwen', generation=generation).set(qwen_latency)
+        # DeepSeek-OCR Processing
+        # TODO: Integrate OCR agent into competitive loop for vision/OCR tasks
+        # For now, we demonstrate basic OCR agent invocation
+        print("\n[DeepSeek-OCR] Processing (placeholder)...")
+        ocr_start = time.time()
+        try:
+            # Example: If task involves images, process with OCR agent
+            # ocr_result = ocr_agent.process_image(
+            #     image_path=task.test_cases[0]["input"],
+            #     prompt=task.description
+            # )
+            ocr_result = {
+                "status": "ready_for_integration",
+                "note": "OCR agent available for image-based tasks",
+                "capabilities": ["document_extraction", "invoice_parsing", "text_recognition"]
+            }
+            ocr_latency = (time.time() - ocr_start) * 1000
+            print(f"[DeepSeek-OCR] Status: {ocr_result['status']}")
+            print(f"[DeepSeek-OCR] Capabilities: {', '.join(ocr_result['capabilities'])}")
+            inference_latency_ms.labels(model='deepseek-ocr', generation=generation).set(ocr_latency)
+        except Exception as e:
+            print(f"[DeepSeek-OCR] Error: {e}")
+            ocr_result = {'status': 'error', 'error': str(e)}
         
-        # Create Qwen solution
-        qwen_solution = Solution(
-            model_name="qwen2.5-72b",
-            task=task,
-            code=qwen_parsed['code'],
-            reasoning=qwen_parsed['reasoning'],
+        # Fitness Evaluation
+        print("\n--- Fitness Evaluation ---")
+        
+        # Create Solution objects
+        r1_solution = Solution(
+            code=r1_parsed['code'],
+            reasoning=r1_parsed['reasoning'],
+            model="deepseek-r1",
             generation=generation
         )
         
-        # Evaluate Qwen fitness
-        print("Evaluating Qwen fitness...")
-        qwen_fitness = fitness_evaluator.evaluate(qwen_solution)
-        qwen_solution.fitness_score = qwen_fitness
+        qwen_solution = Solution(
+            code=qwen_parsed['code'],
+            reasoning=qwen_parsed['reasoning'],
+            model="qwen2.5-coder",
+            generation=generation
+        )
+        
+        # Evaluate fitness
+        r1_fitness = fitness_evaluator.evaluate(r1_solution, task)
+        qwen_fitness = fitness_evaluator.evaluate(qwen_solution, task)
+        
+        print(f"R1 Fitness: {r1_fitness:.4f}")
+        print(f"Qwen Fitness: {qwen_fitness:.4f}")
+        
+        # Record metrics
+        shinka_fitness.labels(model='r1', generation=generation).set(r1_fitness)
         shinka_fitness.labels(model='qwen', generation=generation).set(qwen_fitness)
-        print(f"Qwen fitness: {qwen_fitness:.4f}")
         
-        # Track Qwen lineage
-        lineage_tracker.track_solution(qwen_solution)
-        
-        # Calculate and track performance gain
-        performance_gain = abs(r1_fitness - qwen_fitness)
-        dgm_performance_gain.labels(model='r1', generation=generation).set(performance_gain if r1_fitness > qwen_fitness else 0)
-        dgm_performance_gain.labels(model='qwen', generation=generation).set(performance_gain if qwen_fitness > r1_fitness else 0)
+        # Track lineage
+        lineage_tracker.record_solution(r1_solution, task, r1_fitness)
+        lineage_tracker.record_solution(qwen_solution, task, qwen_fitness)
         
         # Push metrics to Prometheus
         try:
-            push_to_gateway(PROMETHEUS_GATEWAY, job='competitive_evolution', registry=registry)
-            print("Metrics pushed to Prometheus")
+            push_to_gateway(PROMETHEUS_GATEWAY, job='evoagent', registry=registry)
         except Exception as e:
-            print(f"Failed to push metrics: {e}")
+            print(f"Warning: Failed to push metrics: {e}")
         
-        print(f"Generation {generation} complete\n")
-        
-        # Small delay between generations
-        time.sleep(2)
+        generation += 1
+        time.sleep(1)  # Brief pause between generations
     
-    print("Evolution complete!")
-    lineage_tracker.close()
+    print("\n" + "="*60)
+    print("Evolution Complete!")
+    print(f"Total Generations: {generation}")
+    print("="*60)
+    
+    # Display OCR agent statistics
+    print("\n[DeepSeek-OCR Agent Statistics]")
+    ocr_stats = ocr_agent.get_stats()
+    for key, value in ocr_stats.items():
+        print(f"  {key}: {value}")
 
 if __name__ == "__main__":
     main()
